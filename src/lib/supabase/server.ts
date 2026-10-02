@@ -1,20 +1,35 @@
-import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { requireEnv } from "@/lib/env";
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `Missing required environment variable: ${name}. Copy .env.example to .env.local and fill in your Supabase project details.`
-    );
-  }
-  return value;
-}
+/**
+ * Request-scoped Supabase client bound to the signed-in user's session via
+ * cookies. RLS policies apply under that user's identity (auth.uid()) — this
+ * is the client every server action and server component should use unless
+ * it specifically needs to bypass RLS (see service-role.ts).
+ */
+export async function getSupabaseServerClient() {
+  const cookieStore = await cookies();
 
-export function getSupabaseServerClient() {
-  const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  return createClient(url, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
+  return createServerClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            for (const { name, value, options } of cookiesToSet) {
+              cookieStore.set(name, value, options);
+            }
+          } catch {
+            // Called from a Server Component render — the middleware below
+            // refreshes the session on the next request instead.
+          }
+        },
+      },
+    }
+  );
 }
