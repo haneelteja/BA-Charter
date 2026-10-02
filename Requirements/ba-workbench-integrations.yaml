@@ -1,0 +1,477 @@
+openapi: 3.0.3
+info:
+  title: BA Workbench External Services
+  version: 1.0.0
+  description: >
+    Services consumed by the BA Workbench Pega application. Ingestion, extraction,
+    retrieval and analysis run outside the Pega platform. Pega orchestrates the case
+    lifecycle and calls these services at defined stages.
+
+servers:
+  - url: https://services.ba-workbench.internal/v1
+
+tags:
+  - name: Ingestion
+  - name: Extraction
+  - name: Retrieval
+  - name: Analysis
+  - name: Distribution
+
+paths:
+
+  /ingestion/interactions:
+    post:
+      tags: [Ingestion]
+      summary: Submit a source record for normalisation and indexing
+      operationId: submitInteraction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteractionSubmission'
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingReceipt'
+
+  /ingestion/interactions/{interactionId}:
+    get:
+      tags: [Ingestion]
+      summary: Retrieve normalised interaction with utterances
+      operationId: getInteraction
+      parameters:
+        - name: interactionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Normalised interaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormalisedInteraction'
+
+  /extraction/candidates:
+    post:
+      tags: [Extraction]
+      summary: Extract candidate decisions, actions, questions and risks
+      operationId: extractCandidates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, interactionId]
+              properties:
+                projectId: { type: string }
+                interactionId: { type: string }
+                includeContradictionCheck: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Candidate set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateSet'
+
+  /extraction/minutes:
+    post:
+      tags: [Extraction]
+      summary: Generate minutes of meeting from confirmed content only
+      operationId: generateMinutes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, interactionId, confirmedDecisionIds]
+              properties:
+                projectId: { type: string }
+                interactionId: { type: string }
+                confirmedDecisionIds:
+                  type: array
+                  items: { type: string }
+                confirmedActionItemIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Draft minutes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MinutesDraft'
+
+  /retrieval/search:
+    post:
+      tags: [Retrieval]
+      summary: Semantic search across project history and knowledge model
+      operationId: searchProjectContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, query]
+              properties:
+                projectId: { type: string }
+                query: { type: string }
+                scope:
+                  type: array
+                  items:
+                    type: string
+                    enum: [Utterance, Decision, KnowledgeNode, UserStory, Epic]
+                maxResults: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Ranked results with source references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RetrievalResult'
+
+  /analysis/change-impact:
+    post:
+      tags: [Analysis]
+      summary: Analyse a change request for impact, gaps and contradictions
+      operationId: analyseChangeImpact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, changeRequestId, description]
+              properties:
+                projectId: { type: string }
+                changeRequestId: { type: string }
+                description: { type: string }
+      responses:
+        '200':
+          description: Impact findings and generated questions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactAnalysis'
+
+  /analysis/guardrail-check:
+    post:
+      tags: [Analysis]
+      summary: Evaluate a user story against project guardrail rules
+      operationId: checkGuardrails
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, userStory]
+              properties:
+                projectId: { type: string }
+                userStory:
+                  $ref: '#/components/schemas/UserStoryPayload'
+      responses:
+        '200':
+          description: Guardrail findings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passed: { type: boolean }
+                  findings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GuardrailFinding'
+
+  /analysis/duplicate-check:
+    post:
+      tags: [Analysis]
+      summary: Detect stories that overlap an incoming draft
+      operationId: checkDuplicates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, userStory]
+              properties:
+                projectId: { type: string }
+                userStory:
+                  $ref: '#/components/schemas/UserStoryPayload'
+      responses:
+        '200':
+          description: Overlapping stories ranked by similarity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userStoryId: { type: string }
+                        title: { type: string }
+                        similarityScore: { type: number, format: float }
+                        overlapExplanation: { type: string }
+
+  /analysis/story-suggestions:
+    post:
+      tags: [Analysis]
+      summary: Propose draft stories for an epic from its linked decisions
+      operationId: suggestStories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, epicId]
+              properties:
+                projectId: { type: string }
+                epicId: { type: string }
+      responses:
+        '200':
+          description: Draft story suggestions with source references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserStoryPayload'
+
+  /distribution/email:
+    post:
+      tags: [Distribution]
+      summary: Send an approved document or notification
+      operationId: sendEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, recipients, subject, bodyHtml]
+              properties:
+                projectId: { type: string }
+                recipients:
+                  type: array
+                  items: { type: string, format: email }
+                subject: { type: string }
+                bodyHtml: { type: string }
+                documentType:
+                  type: string
+                  enum: [Minutes, ClarificationRequest, ChangeNotification]
+      responses:
+        '202':
+          description: Queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingReceipt'
+
+components:
+  schemas:
+
+    InteractionSubmission:
+      type: object
+      required: [projectId, sourceType]
+      properties:
+        projectId: { type: string }
+        sourceType:
+          type: string
+          enum: [Transcript, Email, Chat, ManualNote, Document]
+        sourceSystem: { type: string }
+        title: { type: string }
+        occurredAt: { type: string, format: date-time }
+        fileContentBase64: { type: string }
+        fileName: { type: string }
+
+    ProcessingReceipt:
+      type: object
+      properties:
+        referenceId: { type: string }
+        status: { type: string }
+        estimatedCompletionSeconds: { type: integer }
+
+    NormalisedInteraction:
+      type: object
+      properties:
+        interactionId: { type: string }
+        projectId: { type: string }
+        title: { type: string }
+        occurredAt: { type: string, format: date-time }
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              speakerLabel: { type: string }
+              matchedUserId: { type: string }
+              matchedStakeholderId: { type: string }
+        utterances:
+          type: array
+          items:
+            type: object
+            properties:
+              utteranceId: { type: string }
+              sequenceNo: { type: integer }
+              speakerLabel: { type: string }
+              startOffsetSec: { type: integer }
+              content: { type: string }
+
+    CandidateSet:
+      type: object
+      properties:
+        interactionId: { type: string }
+        decisions:
+          type: array
+          items: { $ref: '#/components/schemas/Candidate' }
+        actionItems:
+          type: array
+          items: { $ref: '#/components/schemas/Candidate' }
+        clarifications:
+          type: array
+          items: { $ref: '#/components/schemas/Candidate' }
+        risks:
+          type: array
+          items: { $ref: '#/components/schemas/Candidate' }
+        changeSignals:
+          type: array
+          items: { $ref: '#/components/schemas/Candidate' }
+        contradictions:
+          type: array
+          items:
+            type: object
+            properties:
+              candidateStatement: { type: string }
+              existingDecisionId: { type: string }
+              existingStatement: { type: string }
+              explanation: { type: string }
+
+    Candidate:
+      type: object
+      properties:
+        candidateId: { type: string }
+        statement: { type: string }
+        suggestedOwner: { type: string }
+        suggestedDueDate: { type: string, format: date }
+        functionalAreaHint: { type: string }
+        confidenceScore: { type: number, format: float }
+        sourceUtteranceId: { type: string }
+        sourceQuoteOffsetSec: { type: integer }
+
+    MinutesDraft:
+      type: object
+      properties:
+        subject: { type: string }
+        bodyHtml: { type: string }
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              heading: { type: string }
+              content: { type: string }
+
+    RetrievalResult:
+      type: object
+      properties:
+        objectType: { type: string }
+        objectId: { type: string }
+        snippet: { type: string }
+        relevanceScore: { type: number, format: float }
+        sourceUtteranceId: { type: string }
+
+    ImpactAnalysis:
+      type: object
+      properties:
+        changeRequestId: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              findingType:
+                type: string
+                enum: [Affected, Undefined, Contradiction, LowCoverage]
+              targetObjectType: { type: string }
+              targetObjectId: { type: string }
+              detail: { type: string }
+              confidenceScore: { type: number, format: float }
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              question: { type: string }
+              audienceType:
+                type: string
+                enum: [Client, Architect, InternalBusiness, DeliveryTeam]
+              priority: { type: string, enum: [Low, Medium, High] }
+              whyItMatters: { type: string }
+              isBlocking: { type: boolean }
+        coverageByArea:
+          type: array
+          items:
+            type: object
+            properties:
+              functionalArea: { type: string }
+              coverageScore: { type: number, format: float }
+
+    UserStoryPayload:
+      type: object
+      properties:
+        title: { type: string }
+        actor: { type: string }
+        goal: { type: string }
+        businessValue: { type: string }
+        startingPoint: { type: string }
+        endPoint: { type: string }
+        prerequisites: { type: string }
+        description: { type: string }
+        assumptions: { type: string }
+        exclusions: { type: string }
+        acceptanceCriteria:
+          type: array
+          items:
+            type: object
+            properties:
+              givenClause: { type: string }
+              whenClause: { type: string }
+              thenClause: { type: string }
+              isNegativePath: { type: boolean }
+        sourceDecisionIds:
+          type: array
+          items: { type: string }
+
+    GuardrailFinding:
+      type: object
+      properties:
+        ruleType:
+          type: string
+          enum: [Vocabulary, SentencePattern, StructureCheck, Completeness]
+        ruleName: { type: string }
+        severity: { type: string, enum: [Info, Warning, Blocking] }
+        fieldName: { type: string }
+        message: { type: string }
+        suggestedCorrection: { type: string }
