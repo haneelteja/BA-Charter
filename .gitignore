@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (.env.example documents required vars and has no real secrets, so it's tracked)
 .env*
+!.env.example
 
 # MCP server config — contains live bearer tokens (e.g. Blueprint preview connector)
 .mcp.json

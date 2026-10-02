@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -46,6 +47,21 @@ export default async function ProjectPage({
         {project.client_name ?? "No client set"} · {project.status}
       </p>
       {project.description && <p className="mt-4 text-sm">{project.description}</p>}
+
+      <div className="mt-6 flex gap-3">
+        <Link
+          href={`/projects/${id}/charter`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Charter
+        </Link>
+        <Link
+          href={`/projects/${id}/interactions`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Interactions
+        </Link>
+      </div>
 
       <h2 className="mt-8 text-sm font-medium">Members</h2>
       <ul className="mt-3 divide-y divide-neutral-200 dark:divide-neutral-800">
