@@ -24,9 +24,9 @@ a deployable shell.
   `created_at` consistently, enable `pgvector`, `pgcrypto`) — **L**
 - App shell: Next.js App Router project, design system baseline, dashboard
   layout/nav, loading/error boundaries — **M**
-- Background job infrastructure: a job runner for anything that can't complete
-  inside a single HTTP request (extraction, embeddings, retention sweeps). Needs
-  an architecture decision — see Open Questions §A. — **L**
+- Background job infrastructure: Postgres job table + self-hosted Node worker
+  (resolved, see `EXECUTION_PLAN.md` §3.A) for anything that can't complete
+  inside a single HTTP request (extraction, embeddings, retention sweeps) — **L**
 - Central audit log writer (`audit_event` insert helper, called from every
   mutating server action, not bolted on later) — **S**
 - Environment/config and secrets management (`.env.local` pattern already
@@ -57,6 +57,9 @@ membership and role.
     only after activation — **S**
 - Workspace switcher (cross-project shell, not the full cross-project workspace
   in EPIC 13 — just the project picker) — **S**
+- Per-user LLM provider settings (BYOK): provider + model + encrypted API key,
+  used by every AI call site platform-wide (resolved decision, see
+  `EXECUTION_PLAN.md` §3.C) — **M**
 
 ---
 
@@ -84,8 +87,9 @@ into. Must exist before Meeting Ingestion can "commit to charter."
 ---
 
 ## EPIC 3 — Interaction Capture
-**Why:** The entry point for all content. Manual upload is the v1 critical path;
-live connectors are explicitly phased later (see Open Questions §B).
+**Why:** The entry point for all content. Manual upload is the whole of v1
+Capture (resolved decision, see `EXECUTION_PLAN.md` §3.B) — no live connector
+is scheduled in this plan.
 **Traces to:** §3.2 stage 1 (Capture), §6 Inbound integrations, `interaction` /
 `utterance` tables.
 
@@ -99,9 +103,9 @@ live connectors are explicitly phased later (see Open Questions §B).
   exists; stub until then) — **S**
 - Retention: `purge_after` computed from project `retention_days` at ingest
   time — **S**
-- *(Phase 2, not v1 blocking)* Meeting platform connector, note-taking
-  connector, mailbox connector — each is its own integration project once a
-  provider is chosen (§Open Questions B) — **XL total, per connector**
+- *(Post-v1, not scheduled)* Meeting platform connector, note-taking
+  connector, mailbox connector — deferred entirely; revisit as a new phase
+  only if a future need arises — **XL total, per connector**
 
 ---
 
@@ -112,10 +116,11 @@ confirmation (external services get built, not assumed).
 **Traces to:** §3.2 stage 2, §6 Processing services, `ba-workbench-integrations.yaml`
 `/extraction/candidates`, `/extraction/minutes`.
 
-- LLM provider selection and prompt-engineering harness for candidate extraction
-  (decisions, action items, clarifications, risks, change signals), each with a
-  confidence score and `source_utterance_id` — **L** (blocked on Open
-  Questions §C: provider choice)
+- Provider-agnostic prompt-engineering harness for candidate extraction
+  (decisions, action items, clarifications, risks, change signals), each with
+  a confidence score and `source_utterance_id` — resolves the LLM provider
+  from the initiating user's BYOK settings (EPIC 1), not a hardcoded vendor
+  (resolved decision, `EXECUTION_PLAN.md` §3.C) — **L**
 - Contradiction check against existing `Confirmed` decisions at extraction time
   (`includeContradictionCheck`) — **L**
 - Async job: extraction must complete within the 15-minute SLA for a 90-minute
@@ -123,9 +128,8 @@ confirmation (external services get built, not assumed).
   not inline in a request — **M**
 - `extraction/minutes` endpoint: generate minutes draft from a confirmed-only
   decision/action set — **M**
-- Confidence threshold configuration (what counts as "high confidence
-  pre-accepted" vs. "requires explicit decision") — needs a number; see Open
-  Questions §D — **S** once threshold is set
+- Confidence threshold: 0.80 default, project-level config (resolved
+  decision, `EXECUTION_PLAN.md` §3.D) — **S**
 
 ---
 
@@ -224,8 +228,8 @@ Request Analysis.
   progression until resolved — **M**
 
 **Depends on:** EPIC 2 (glossary/rules are project-scoped charter-adjacent
-config), EPIC 4's LLM harness (reused for rule evaluation, not a new provider
-integration).
+config), EPIC 4's provider-agnostic LLM harness (reused for rule evaluation,
+not a new provider integration).
 
 ---
 
@@ -235,7 +239,10 @@ traversal. Build once, reuse three times.
 **Traces to:** §6 Processing services, `/retrieval/search`.
 
 - Embedding pipeline: embed utterances, decisions, knowledge nodes, user
-  stories on write (pgvector columns + background job) — **L**
+  stories on write (pgvector columns + background job). A project's embedding
+  model is fixed at the project level (not per-user) so vectors stay
+  comparable within a project even though generation calls are BYOK per user
+  (resolved decision, `EXECUTION_PLAN.md` §3.C) — **L**
 - `/retrieval/search` equivalent: scoped semantic search across the enabled
   object types, ranked, with source references — **M**
 - Re-embedding on edit (versioned content must stay searchable against its
@@ -327,10 +334,13 @@ cheaply (e.g. consistent owner/status columns).
 the standalone build it's a real external integration.
 **Traces to:** §6 Outbound, §8 rule 6–7.
 
-- REST client against Pega Infinity's Agile Studio APIs — OAuth2
+- Stub client first: same interface as the real REST client, mocked
+  responses, so Phase 5/6 Publish steps aren't blocked (resolved decision,
+  `EXECUTION_PLAN.md` §3.E) — **S**
+- Real REST client against Pega Infinity's Agile Studio APIs — OAuth2
   client-credentials, matching the pattern already built and removed earlier
-  in this project (`src/lib/pega/*` before the Pega pivot) — can be resurrected
-  almost as-is — **M**
+  in this project (`src/lib/pega/*` before the Pega pivot) — can be
+  resurrected almost as-is once an instance exists — **M**
 - Create/update epic, create/update story — **M**
 - Read status back (sprint, story points, status) for display — **M**
 - Ownership boundary enforced in code, not just convention: story
@@ -339,16 +349,16 @@ the standalone build it's a real external integration.
   read-back sync (§8 rule 7) — **S**
 - Backlog import (used by EPIC 1 Seed stage) — **M**
 
-**Depends on:** EPIC 0. Needs a real Pega Infinity + Agile Studio
-instance/credentials to integrate against — see Open Questions §E.
+**Depends on:** EPIC 0. The stub ships in Phase 6; swapping to the real
+client is deferred until a Pega Infinity + Agile Studio instance exists.
 
 ---
 
 ## EPIC 15 — Email Distribution Service
 **Traces to:** §6 Outbound (Email distribution).
 
-- Transactional email provider integration — **S** (provider choice: Open
-  Questions §F)
+- Transactional email provider integration — **Resend** (resolved decision,
+  `EXECUTION_PLAN.md` §3.F) — **S**
 - Templates: minutes of meeting, clarification request, change notification — **M**
 - Recipient tracking for minutes (`minutes_recipient.acknowledged_at`) —
   acknowledgement link/webhook that feeds the EPIC 5 commit-to-charter
@@ -387,10 +397,11 @@ with its own line items so it's plannable and demonstrable rather than vague.
 ## EPIC 17 — Retention & Purge
 **Traces to:** §7 Security.
 
-- Scheduled purge job: `interaction` rows past `purge_after` are purged
-  (define: hard delete vs. anonymise — Open Questions §G) — **M**
-- Manual purge-on-request flow — **S**
-- Purge of an interaction must not silently break trace links/audit history
-  that reference it (decide: cascade vs. tombstone) — **M**
+- Scheduled purge job: `interaction`/`utterance` rows past `purge_after` are
+  anonymised — content columns redacted, structural rows retained (resolved
+  decision, `EXECUTION_PLAN.md` §3.G) — **M**
+- Manual purge-on-request flow, same anonymise semantics — **S**
+- Anonymise rather than delete specifically so trace links and audit history
+  referencing a purged interaction never dangle — **M**
 
 **Depends on:** EPIC 3, EPIC 0 (scheduler).

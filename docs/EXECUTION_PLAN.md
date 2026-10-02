@@ -21,7 +21,7 @@ prerequisites (Phase 0–2) land.
 | **3 — Spawned cases** | EPIC 6 (Action Item), EPIC 7 (Clarification Item) | Directly spawned by EPIC 5's Commit stage. Can build in parallel with each other. |
 | **4 — Authoring prerequisites** | EPIC 9 (Guardrails), EPIC 10 (Retrieval) | Needed by Story Authoring's Check stage and by Change Request Analysis. Can run in parallel with Phase 3 — no shared dependency. |
 | **5 — Delivery authoring** | EPIC 8 (Epic Definition), EPIC 11 (User Story Authoring) | Consume confirmed decisions from the charter (Phase 1) and the engines from Phase 4. |
-| **6 — External publish** | EPIC 14 (Agile Studio) | Required by EPIC 8 and EPIC 11's Publish steps, and by EPIC 12's Propagate step. Start this *in parallel with Phase 4/5*, stub it until a real Agile Studio instance is available (Open Question E) so Phase 5 isn't blocked end-to-end. |
+| **6 — External publish** | EPIC 14 (Agile Studio) | Required by EPIC 8 and EPIC 11's Publish steps, and by EPIC 12's Propagate step. Start this *in parallel with Phase 4/5*, built against a stub (§3.E) since no real Agile Studio instance exists yet, so Phase 5 isn't blocked end-to-end. |
 | **7 — Change impact** | EPIC 12 (Change Request Analysis) | The most dependency-heavy case type — needs charter, trace links, retrieval, guardrail reuse, and published stories to exist first. |
 | **8 — Cross-cutting workspace** | EPIC 13 | A set of views over data produced by Phases 3, 5, 7. Build last, but sketch its query shape during Phase 0 so earlier tables carry the owner/status columns it needs. |
 | **9 — Hardening & launch** | EPIC 16 (close-out pass), EPIC 17 (Retention) | EPIC 16's checklist runs continuously per-epic, not just here — this phase is the final audit that nothing was skipped. |
@@ -67,66 +67,71 @@ built on. Flagging them so you can object before Phase 0 starts.
 
 ---
 
-## 3. Open questions — need your decision
+## 3. Resolved decisions
 
-Grouped by the phase they block. Phase 0–1 items are hard blockers; later ones
-can be decided while earlier phases are in progress.
+All gaps identified during planning have been decided. No open questions
+remain blocking any phase.
 
-### A. Background job infrastructure (blocks Phase 0)
-Options: (a) a simple Postgres table + a long-running Node worker process
-you host yourself, (b) a managed queue (e.g. Inngest, Trigger.dev), (c)
-Supabase Edge Functions + `pg_cron` for the scheduled parts (SLA sweeps,
-retention) plus a separate worker for the heavier extraction jobs. This
-affects hosting cost and ops complexity more than application code — pick
-based on how much infra you want to run yourself.
+### A. Background job infrastructure — **self-hosted worker**
 
-### B. Inbound connectors (blocks Phase 1, partially)
-The requirements list meeting-platform, note-taking, and mailbox connectors
-as inbound sources, but manual upload is always available and is explicitly
-the only path specified in enough detail to build without more input. **Do
-you want any live connector (Zoom/Teams/Google Meet transcripts, Gmail/Outlook
-mailbox) in the v1 scope, or is manual upload the whole of Phase 1 Capture for
-now?** Each connector is effectively its own integration project (OAuth,
-webhook or polling, provider-specific transcript formats).
+A Postgres job table + a Node worker process polling it. No third-party queue
+vendor. Covers: extraction (EPIC 4), embeddings (EPIC 10), SLA/ageing sweeps
+(EPIC 5/6/7), acknowledgement-window promotion (EPIC 5), retention purge
+(EPIC 17).
 
-### C. LLM provider for extraction/retrieval/analysis (blocks Phase 2)
-Needed for: candidate extraction, minutes generation, guardrail evaluation,
-duplicate detection, change-impact analysis, and the embedding model for
-retrieval. One provider can likely cover all of these. No default has been
-chosen yet.
+### B. Inbound connectors — **manual upload only for v1**
 
-### D. Confidence thresholds (blocks Phase 2)
-The requirements say "high confidence items are pre-accepted" and "low
-confidence and contradicting items require explicit decision" (§3.2) but
-never state the numeric cutoff. Needs a starting value (e.g. 0.8) that can be
-tuned per project later — the schema already supports per-row
-`confidence_score`, so this is a config value, not a schema change.
+Transcript/email/document upload is the whole of Phase 1 Capture. Meeting
+platform and mailbox connectors are explicitly deferred past v1 — not
+scheduled in any phase above.
 
-### E. Agile Studio instance (blocks Phase 6, not earlier)
-EPIC 14 needs real Pega Infinity + Agile Studio OAuth client credentials to
-integrate against. Until available, Phase 6 ships against a stub so EPIC 8/11
-Publish steps aren't blocked. **Is there an existing Infinity instance to
-target, or does this get provisioned later?**
+### C. LLM provider — **configurable per user (BYOK), not a single fixed provider**
 
-### F. Email provider (blocks Phase 1, low risk)
-Needs a transactional email provider (e.g. Resend, SendGrid, SES) for minutes
-distribution, clarification requests, and change notifications. Any mainstream
-provider works — flagging only because a choice has to be made, not because
-it's architecturally significant.
+Each user configures their own provider/model/API key in personal settings;
+every AI call site (extraction, embeddings, guardrail evaluation, duplicate
+detection, change-impact analysis) resolves the provider from the
+*initiating* user's settings rather than a hardcoded vendor. Implemented via
+a provider-agnostic call layer (Vercel AI SDK's unified `"provider/model"`
+interface) so call sites never branch on vendor. This adds a new Phase 0
+component: **encrypted per-user LLM credential storage + settings UI**,
+added to EPIC 1. Embeddings for EPIC 10 retrieval must also resolve per the
+acting user's configured provider — if a project mixes providers across
+users, retrieval indexing is still coherent only within a single provider's
+vector space, so EPIC 10 needs a documented constraint: **a project's
+embedding model is fixed at the project level** (likely the Project
+Administrator's or Lead BA's configured provider) even though generation
+calls (extraction, guardrails) can vary per acting user. This nuance is
+tracked as an implementation detail for EPIC 10, not a further open question.
 
-### G. Retention/purge semantics (blocks Phase 9, low urgency)
-"Purgeable on request" (§7 Security) — does purge mean hard delete of the
-`interaction`/`utterance` rows, or anonymisation (strip content, keep
-structural rows so trace links and audit history don't dangle)? Affects
-EPIC 17's design, not anything earlier.
+### D. Confidence threshold — **0.80 default**
 
-### H. Authentication model (blocks Phase 0)
-Supabase Auth email/password or magic-link is the default assumption for
-internal users (Business Analyst, Lead BA, Delivery Team Member, Project
-Administrator). Client-side stakeholders explicitly never log in (§1 "Out of
-scope for release one") — they're `stakeholder` rows contacted only by email,
-which matches the schema (`stakeholder` has no auth linkage). **Confirming
-this reading is correct before Phase 0 builds the auth/role layer against it.**
+Candidates scoring ≥ 0.80 are pre-accepted (revertible); below that,
+contradicting, or ambiguous candidates require explicit BA decision. Stored
+as project-level config (`confidence_score` already exists per-row in the
+schema), tunable later without a schema change.
+
+### E. Agile Studio instance — **build against a stub**
+
+No real Pega Infinity instance exists yet. EPIC 14 ships with a stub client
+(same interface, mocked responses) so Phase 5/6 Publish steps aren't
+blocked. Swap in real OAuth client-credentials once an instance is
+provisioned — isolated to EPIC 14's client implementation, no call-site
+changes needed elsewhere.
+
+### F. Email provider — **Resend**
+
+### G. Retention/purge semantics — **anonymise, not hard delete**
+
+On retention expiry, `interaction`/`utterance` content is stripped but the
+structural rows remain, so `trace_link` and `audit_event` references never
+dangle. EPIC 17's purge job updates content columns to null/redacted and
+flips a status rather than deleting rows.
+
+### H. Authentication — **both magic link and password**
+
+Supabase Auth supports both; users choose either. Confirmed: client-side
+stakeholders never log in (§1 "Out of scope for release one") — `stakeholder`
+rows have no auth linkage and are reached only by email.
 
 ---
 
