@@ -14,7 +14,7 @@ Sizing is qualitative (S/M/L/XL) — no team velocity exists yet to size in poin
 
 ---
 
-## EPIC 0 — Platform Foundations
+## EPIC 0 — Platform Foundations — ✅ implemented (Phase 0)
 **Why:** Nothing else can be built without a data model, migrations pipeline, and
 a deployable shell.
 **Traces to:** Non-functional requirements (§7), integrations (§6).
@@ -34,7 +34,7 @@ a deployable shell.
 
 ---
 
-## EPIC 1 — Identity, Projects & Membership
+## EPIC 1 — Identity, Projects & Membership — ✅ implemented (Phase 0)
 **Why:** Every object in the system is project-scoped; nothing is visible without
 membership and role.
 **Traces to:** §2 Personas, §3.1 Project Setup, `project` / `app_user` /
@@ -63,7 +63,7 @@ membership and role.
 
 ---
 
-## EPIC 2 — Knowledge Model & Charter
+## EPIC 2 — Knowledge Model & Charter — ✅ implemented (Phase 1)
 **Why:** The charter is the thing every other case type reads from or writes
 into. Must exist before Meeting Ingestion can "commit to charter."
 **Traces to:** §3.8 Charter Update, §5 Data objects (`Charter Entry`/
@@ -86,7 +86,7 @@ into. Must exist before Meeting Ingestion can "commit to charter."
 
 ---
 
-## EPIC 3 — Interaction Capture
+## EPIC 3 — Interaction Capture — ✅ implemented (Phase 1)
 **Why:** The entry point for all content. Manual upload is the whole of v1
 Capture (resolved decision, see `EXECUTION_PLAN.md` §3.B) — no live connector
 is scheduled in this plan.
@@ -395,7 +395,7 @@ client is deferred until a Pega Infinity + Agile Studio instance exists.
 
 ---
 
-## EPIC 15 — Email Distribution Service
+## EPIC 15 — Email Distribution Service — ✅ implemented (Phase 1)
 **Traces to:** §6 Outbound (Email distribution).
 
 - Transactional email provider integration — **Resend** (resolved decision,
