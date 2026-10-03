@@ -18,7 +18,7 @@ prerequisites (Phase 0–2) land.
 | **0 — Foundations** | EPIC 0, EPIC 1 | ✅ Done | Nothing is project-scoped or persisted without this. |
 | **1 — Domain spine** | EPIC 2 (Charter), EPIC 3 (Capture), EPIC 15 (Email) | ✅ Done | Charter is the write-target every case type targets. Capture is the only way content enters. Email is simple and needed by Phase 2 — build it early so Phase 2 isn't blocked on it. |
 | **2 — Core workflow** | EPIC 4 (Extraction), EPIC 5 (Meeting Ingestion) | ✅ Done, live-tested | The primary, most-frequent case type. Everything else either spawns from it (Action Item, Clarification) or consumes its output (Epic Definition, Story Authoring). |
-| **3 — Spawned cases** | EPIC 6 (Action Item), EPIC 7 (Clarification Item) | ⬜ Not started | Directly spawned by EPIC 5's Commit stage. Can build in parallel with each other. |
+| **3 — Spawned cases** | EPIC 6 (Action Item), EPIC 7 (Clarification Item) | ✅ Done | Directly spawned by EPIC 5's Commit stage. Can build in parallel with each other. |
 | **4 — Authoring prerequisites** | EPIC 9 (Guardrails), EPIC 10 (Retrieval) | ⬜ Not started | Needed by Story Authoring's Check stage and by Change Request Analysis. Can run in parallel with Phase 3 — no shared dependency. |
 | **5 — Delivery authoring** | EPIC 8 (Epic Definition), EPIC 11 (User Story Authoring) | ⬜ Not started | Consume confirmed decisions from the charter (Phase 1) and the engines from Phase 4. |
 | **6 — External publish** | EPIC 14 (Agile Studio) | ⬜ Not started | Required by EPIC 8 and EPIC 11's Publish steps, and by EPIC 12's Propagate step. Start this *in parallel with Phase 4/5*, built against a stub (§3.E) since no real Agile Studio instance exists yet, so Phase 5 isn't blocked end-to-end. |

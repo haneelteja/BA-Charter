@@ -1,7 +1,10 @@
 import { randomUUID } from "crypto";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { JobType } from "@/lib/jobs/types";
+import { enqueueJob } from "@/lib/jobs/enqueue";
 import { handlers } from "./handlers";
+
+const SELF_SCHEDULING_JOB_TYPES: JobType[] = ["sweep_action_item_overdue", "sweep_clarification_ageing"];
 
 const WORKER_ID = `worker-${randomUUID()}`;
 const POLL_INTERVAL_MS = 2_000;
@@ -48,8 +51,37 @@ async function runOnce(): Promise<boolean> {
   return true;
 }
 
+/**
+ * Self-rescheduling sweeps (each handler re-enqueues itself when it
+ * finishes — see sweepActionItemOverdue/sweepClarificationAgeing) need one
+ * seed job to start the chain. Only enqueue if neither a pending nor an
+ * already-processing job of that type exists, so restarting the worker
+ * doesn't stack up duplicate chains.
+ */
+async function seedSelfSchedulingJobs() {
+  const supabase = getSupabaseServiceRoleClient();
+
+  for (const jobType of SELF_SCHEDULING_JOB_TYPES) {
+    const { count, error } = await supabase
+      .from("job_queue")
+      .select("job_id", { count: "exact", head: true })
+      .eq("job_type", jobType)
+      .in("status", ["pending", "processing"]);
+
+    if (error) {
+      console.error(`[worker] failed to check existing ${jobType} jobs:`, error.message);
+      continue;
+    }
+    if (!count) {
+      console.log(`[worker] seeding initial ${jobType} job`);
+      await enqueueJob(jobType, {});
+    }
+  }
+}
+
 async function main() {
   console.log(`[worker] ${WORKER_ID} started, polling every ${POLL_INTERVAL_MS}ms`);
+  await seedSelfSchedulingJobs();
 
   while (true) {
     const didWork = await runOnce();

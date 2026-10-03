@@ -9,7 +9,8 @@ export type AuditEventType =
   | "Created"
   | "Updated"
   | "Deleted"
-  | "StatusChanged";
+  | "StatusChanged"
+  | "Escalated";
 
 export interface AuditLogInput {
   projectId: string;

@@ -204,37 +204,52 @@ primary day-to-day workflow.
 
 ---
 
-## EPIC 6 — Action Item Case
+## EPIC 6 — Action Item Case — ✅ implemented (Phase 3)
+
 **Traces to:** §3.3.
 
-- Stages: Assign → In progress → Complete → Verify, as explicit status field +
-  transition guards — **M**
-- Routing to assigned owner's worklist (feeds EPIC 13) — **S**
-- Overdue escalation to Lead BA (needs a scheduled sweep) — **M**
-- "Must resolve to a named person" validation (§8 rule 8) — **S**
+- Stages: Open → InProgress → Completed → Verified, plus Cancelled, as
+  explicit status field + transition guards (owner/raiser/Lead-BA gated) —
+  `action-items/actions.ts`
+- Worklist page grouped by status, with an Overdue badge computed from
+  `due_date` — `action-items/page.tsx`. **Not built**: a true cross-project
+  "my action items" view — that's EPIC 13's job, this page is per-project only.
+- Overdue escalation: self-rescheduling sweep job (`sweep_action_item_overdue`,
+  hourly, idempotent via `escalated_at`) writes an `Escalated` audit event —
+  no notification/inbox system exists yet, so "escalates to the Lead BA"
+  means it's visible in the project's audit trail and the Overdue badge,
+  not a push notification.
+- "Must resolve to a named person" (§8 rule 8) — enforced structurally since
+  Phase 2's commit (owner_user_id is NOT NULL with a resolution fallback).
 
 **Depends on:** EPIC 1 (owners are project members), EPIC 5 (primary spawn
 source), EPIC 0 (background sweep for escalation).
 
 ---
 
-## EPIC 7 — Clarification Item Case
+## EPIC 7 — Clarification Item Case — ✅ implemented (Phase 3)
+
 **Traces to:** §3.4.
 
-- Raise: question, affected functional area, why-it-matters, audience
-  classification (Client / Architect / InternalBusiness / DeliveryTeam),
-  chasing BA — **M**
-- Prepare: surfaces in call-prep views (feeds EPIC 13), grouped by topic — **S**
-  (depends on EPIC 13 existing to render into)
-- Ask: channel + date captured — **S**
-- Answer: answer treated as a candidate decision, routed into the same
-  confirm/charter-write path as EPIC 2/5 — **M**
-- Confirm: writes to charter, notifies dependent stories/change requests
-  (trace-link driven notification) — **M**
-- Ageing flag beyond configurable threshold, reported to Lead BA — **M**
-  (same scheduled-sweep pattern as EPIC 6 overdue escalation — build once,
-  reuse)
-- "Must resolve to a named person" validation (§8 rule 8) — **S**
+- Raise: created at Meeting Ingestion commit time (Phase 2); audience
+  classification defaults to InternalBusiness since extraction doesn't
+  infer audience — editing that after creation isn't built yet.
+- Prepare / Ask: status transitions with channel + date captured —
+  `clarifications/actions.ts`. **Not built**: surfacing in call-prep
+  views — that's EPIC 13.
+- Answer: creates a real `decision` row at `Candidate` status (not routed
+  through the Meeting Ingestion extraction/contradiction pipeline — this is
+  a direct BA-recorded answer, not LLM output).
+- Confirm: promotes that decision straight to `Confirmed` — not subject to
+  the Provisional/acknowledgement-window path, since §8 rule 3 scopes that
+  specifically to decisions derived from distributed minutes. "Notifies
+  dependent stories/change requests" is a no-op: EPIC 11/12 don't exist yet
+  for there to be anything to notify.
+- Ageing: same self-rescheduling sweep pattern as EPIC 6
+  (`sweep_clarification_ageing`), threshold per-project
+  (`project.clarification_ageing_days`, default 14).
+- "Must resolve to a named person" (§8 rule 8) — enforced structurally since
+  Phase 2's commit (chasing_user_id is NOT NULL with a resolution fallback).
 
 **Depends on:** EPIC 1, EPIC 2 (answer → decision write), EPIC 0 (sweep infra).
 

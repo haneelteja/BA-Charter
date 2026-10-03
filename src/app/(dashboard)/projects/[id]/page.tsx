@@ -61,6 +61,18 @@ export default async function ProjectPage({
         >
           Interactions
         </Link>
+        <Link
+          href={`/projects/${id}/action-items`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Action items
+        </Link>
+        <Link
+          href={`/projects/${id}/clarifications`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Clarifications
+        </Link>
       </div>
 
       <h2 className="mt-8 text-sm font-medium">Members</h2>
@@ -73,10 +85,8 @@ export default async function ProjectPage({
       </ul>
 
       <div className="mt-10 rounded-md border border-neutral-200 p-4 text-sm text-neutral-500 dark:border-neutral-800">
-        Meeting Ingestion, the charter, action items, clarifications, epics,
-        stories and change requests land in later phases (see
-        docs/EXECUTION_PLAN.md). This page is the Phase 0 proof that project
-        creation, membership and RLS are wired correctly end to end.
+        Epics, stories and change requests land in later phases (see
+        docs/EXECUTION_PLAN.md).
       </div>
     </main>
   );
