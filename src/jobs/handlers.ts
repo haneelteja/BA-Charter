@@ -1,11 +1,7 @@
-import type { JobType } from "@/lib/jobs/types";
+import type { JobType, JobPayloadMap } from "@/lib/jobs/types";
+import { handleExtractCandidates } from "./handlers/extractCandidates";
+import { handlePromoteProvisionalDecisions } from "./handlers/promoteProvisionalDecisions";
 
-// Keyed as `unknown` rather than each job's specific payload type: the
-// worker reads `payload` back from Postgres as `unknown` (it doesn't trust
-// the DB's jsonb column to match the TS shape at compile time), so each
-// handler implementation validates/casts its own payload once it has real
-// logic. Keeps the registry map simple instead of fighting a mapped
-// conditional type for a dispatch table that's all stubs today anyway.
 type Handler = (payload: unknown) => Promise<void>;
 
 function notImplemented(jobType: JobType): Handler {
@@ -16,17 +12,16 @@ function notImplemented(jobType: JobType): Handler {
   };
 }
 
-// Each stub below is replaced with real logic as its owning epic lands:
-// extract_candidates/generate_minutes -> EPIC 4, embed_object -> EPIC 10,
-// the two sweeps -> EPIC 6/7, promote_provisional_decisions -> EPIC 5,
-// retention_purge -> EPIC 17. Registering them here now (even as stubs)
-// means the queue/worker plumbing is exercised end-to-end from Phase 0.
+// embed_object -> EPIC 10, the two sweeps -> EPIC 6/7, retention_purge ->
+// EPIC 17: still stubs, registered so the queue/worker plumbing exercises
+// every job type even before its owning epic lands.
 export const handlers: Record<JobType, Handler> = {
-  extract_candidates: notImplemented("extract_candidates"),
-  generate_minutes: notImplemented("generate_minutes"),
+  extract_candidates: (payload) =>
+    handleExtractCandidates(payload as JobPayloadMap["extract_candidates"]),
+  promote_provisional_decisions: (payload) =>
+    handlePromoteProvisionalDecisions(payload as JobPayloadMap["promote_provisional_decisions"]),
   embed_object: notImplemented("embed_object"),
   sweep_action_item_overdue: notImplemented("sweep_action_item_overdue"),
   sweep_clarification_ageing: notImplemented("sweep_clarification_ageing"),
-  promote_provisional_decisions: notImplemented("promote_provisional_decisions"),
   retention_purge: notImplemented("retention_purge"),
 };

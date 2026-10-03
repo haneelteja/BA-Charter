@@ -109,7 +109,8 @@ is scheduled in this plan.
 
 ---
 
-## EPIC 4 — Extraction Service (AI)
+## EPIC 4 — Extraction Service (AI) — ✅ implemented (Phase 2)
+
 **Why:** Converts raw utterances into candidate decisions/actions/questions —
 the core "intelligence" of the product. Explicitly in scope per your
 confirmation (external services get built, not assumed).
@@ -120,43 +121,74 @@ confirmation (external services get built, not assumed).
   (decisions, action items, clarifications, risks, change signals), each with
   a confidence score and `source_utterance_id` — resolves the LLM provider
   from the initiating user's BYOK settings (EPIC 1), not a hardcoded vendor
-  (resolved decision, `EXECUTION_PLAN.md` §3.C) — **L**
-- Contradiction check against existing `Confirmed` decisions at extraction time
-  (`includeContradictionCheck`) — **L**
-- Async job: extraction must complete within the 15-minute SLA for a 90-minute
-  transcript (§7 Performance) — runs on the background job infra from EPIC 0,
-  not inline in a request — **M**
-- `extraction/minutes` endpoint: generate minutes draft from a confirmed-only
-  decision/action set — **M**
-- Confidence threshold: 0.80 default, project-level config (resolved
-  decision, `EXECUTION_PLAN.md` §3.D) — **S**
+  (resolved decision, `EXECUTION_PLAN.md` §3.C) — `src/lib/ai/extraction.ts`
+- Contradiction check against existing `Confirmed` decisions at extraction
+  time — done in the same LLM call, with existing confirmed statements
+  passed as context (no retrieval/embedding service yet — EPIC 10, Phase 4)
+  — `src/jobs/handlers/extractCandidates.ts`
+- Async job: runs on the EPIC 0 job queue, not inline in a request —
+  `extract_candidates` job type
+- Minutes draft generation — done synchronously in a server action instead
+  of the job queue (single LLM call over already-accepted candidates, not
+  the long-running per-utterance pass extraction needs) —
+  `src/lib/ai/minutes.ts`, `generateMinutes` action
+- Confidence threshold: 0.80 default read from `project.confidence_threshold`
+- **New schema**: `extraction_candidate` table (migration `0010`) — holds
+  all five candidate kinds pre-commit. Not in the original
+  `ba-workbench-schema.sql`; justified because `action_item.status` has no
+  Candidate-equivalent value and the BPMN flow makes clear decision/
+  action_item/clarification rows aren't created until Commit, after minutes
+  distribution — see migration comment for the full reasoning.
+- **Not yet live-tested**: no LLM provider or Resend API key was available
+  in this environment. All non-LLM logic (candidate review, contradiction
+  resolution, commit, dispute, job queueing) was verified directly against
+  the live Supabase project; the `generateObject`/`generateText` calls
+  themselves and the Resend send are implemented but unexercised.
 
 ---
 
-## EPIC 5 — Meeting Ingestion Case
+## EPIC 5 — Meeting Ingestion Case — ✅ implemented (Phase 2)
+
 **Why:** "The most frequently executed case type" per the requirements — the
 primary day-to-day workflow.
 **Traces to:** §3.2 (all 5 stages), §8 rules 2–4, BPMN diagram.
 
-- **Confirm stage**: reviewer UI for the candidate list — accept / edit / merge
-  / split / reassign / reject per candidate; high-confidence items pre-accepted
-  with a revert action; case cannot advance while unresolved contradictions
-  remain (maps directly to the BPMN gateway `Gateway_Contradiction`) — **L**
-- **Resolve contradiction** sub-flow (Lead BA), re-enters Confirm per the BPMN
-  loop (`Flow_06`) — **M**
-- **Publish minutes stage**: BA edits generated draft, Lead BA approval gate,
-  distribute by email (EPIC 15) to attendees + distribution list — **M**
-- **Commit to charter stage**:
+- **Confirm stage**: reviewer UI for the candidate list — accept / reject /
+  revert per candidate (`confirm-actions.ts`); high-confidence items
+  pre-accepted with a revert action; case cannot advance while any candidate
+  is still Pending, which covers unresolved contradictions since those stay
+  Pending until resolved (maps to the BPMN gateway `Gateway_Contradiction`).
+  **Deferred, not built**: merge/split candidates — accept/edit/reject
+  covers the common path; merge/split adds real complexity (what happens to
+  source_utterance_id, confidence scoring across merged items) for a case
+  that didn't come up in verification. Revisit if real usage needs it.
+- **Resolve contradiction** sub-flow (Lead BA only, role-checked) —
+  `resolveContradiction` action, re-enters Confirm per BPMN `Flow_06`.
+- **Publish minutes stage**: LLM-drafted minutes (`generateMinutes`), BA
+  edits (`updateMinutes`), Lead-BA approve step combined with distribute
+  into one action (`approveAndDistribute`) — the requirements describe them
+  sequentially but don't require a human step between approval and sending.
+- **Commit to charter stage** (`commitToCharter`, runs inside
+  `approveAndDistribute`):
   - Decisions written as `Provisional` (§8 rule 3) with supersession links
-  - Acknowledgement window per project (`mom_ack_window_hours`); decisions
-    auto-promote to `Confirmed` when the window lapses undisputed — needs a
-    scheduled job — **L**
-  - Dispute handling within the window: reverts affected decisions to
-    `Candidate`, reopens the case at Confirm (§8 rule 4) — **M**
-  - Spawn child `Action Item` and `Clarification` cases from confirmed items — **M**
-  - Mark superseded decisions, record attribution/version — **S**
-- Case-level SLA tracking (15-minute minutes-drafted target, §3.2) surfaced as
-  a visible timer/alert, not just a backend metric — **S**
+    when a candidate resolved a contradiction
+  - Action items/clarifications need a resolved owner (§8 rule 8) but
+    extraction only gives free-text `suggestedOwner` — exact case-insensitive
+    name match against project members, else falls back to the committing
+    Lead BA. Noted in code as a placeholder pending a real
+    owner-assignment UI.
+  - Acknowledgement window scheduled via the job queue
+    (`promote_provisional_decisions`, `run_after` = now + `mom_ack_window_hours`)
+  - Dispute handling (`disputeMinutes`): reverts affected decisions to
+    `Candidate`, resets their `extraction_candidate` rows to `Pending`,
+    reopens the interaction at `Extracted` (§8 rule 4). **Deferred**: dispute
+    is an authenticated in-app action for any project member, not a public
+    tokenized link for external recipients — building real unauthenticated
+    ack/dispute links is its own scope.
+  - Risk / ChangeSignal candidates have no persistent home in the schema —
+    they stay as Accepted `extraction_candidate` rows for traceability only.
+- Case-level SLA timer/alert (15-minute target) — **not built**; the job
+  queue enforces nothing about timing yet, just FIFO + retry.
 
 **Depends on:** EPIC 2 (charter writes), EPIC 3 (source interaction), EPIC 4
 (extraction + minutes generation), EPIC 15 (email distribution).
