@@ -255,15 +255,23 @@ source), EPIC 0 (background sweep for escalation).
 
 ---
 
-## EPIC 8 — Epic Definition Case
+## EPIC 8 — Epic Definition Case — ✅ implemented (Phase 5)
+
 **Traces to:** §3.5.
 
-- Draft: title, business objective, functional areas, in/out of scope — **S**
-- Link: attach source decisions + charter nodes (trace links) — **M**
-- Review: Lead BA completeness review, approve/return — **S**
-- Publish: create/update Agile Studio epic — **M** (depends on EPIC 14)
+- Draft: title, business objective, in/out of scope — `epics/actions.ts`.
+  **Not built**: linking to "functional areas" as a distinct concept —
+  charter entries (`knowledge_node`) serve that role via Link instead.
+- Link: attach source decisions + charter nodes as `trace_link` rows
+  (`link_type = 'DerivedFrom'`); submitting for review is gated on at least
+  one link existing.
+- Review: Lead-BA-only approve/return-for-rework, recorded in `review`.
+- Publish: calls the EPIC 14 stub client (`src/lib/agileStudio/client.ts`,
+  built now rather than waiting for Phase 6, so this isn't blocked) and
+  stores the returned reference on `agile_studio_ref`.
 
-**Depends on:** EPIC 2 (confirmed decisions to link), EPIC 14 (publish).
+**Depends on:** EPIC 2 (confirmed decisions to link), EPIC 14 (publish —
+stubbed, see above).
 
 ---
 
@@ -338,28 +346,38 @@ index as it's created).
 
 ---
 
-## EPIC 11 — User Story Authoring Case
+## EPIC 11 — User Story Authoring Case — ✅ implemented (Phase 5)
+
 **Traces to:** §3.6 (all 5 stages), §8 rule 5.
 
-- **Frame**: parent epic, actor, goal, business value, starting/end point — **S**
-- **Detail**: prerequisites/dependencies on other stories (`story_dependency`),
-  description, Given/When/Then acceptance criteria editor, NFR fields
-  (performance/security/accessibility/audit), assumptions/exclusions — **L**
-- **Check**:
-  - Guardrail evaluation (EPIC 9) against the draft — **S** (integration only,
-    engine already built)
-  - Completeness check (negative paths, error handling, permissions, data
-    migration) — covered by EPIC 9's completeness rules
-  - Duplicate detection against existing stories (`/analysis/duplicate-check`,
-    built on EPIC 10 retrieval) — **M**
-  - BA resolves/accepts each finding before advancing — **S**
-- **Review**: peer or Lead BA review, field-level comments (`review` table),
-  approve / return-for-rework; returned story re-enters Check (§3.6 stage 4) — **M**
-- **Publish**: create/update Agile Studio story, record the external link —
-  **blocked without at least one trace link to a confirmed decision** (§8
-  rule 5 — hard gate, not a warning) — **M**
+- **Frame**: parent epic, actor, goal, business value, starting/end point —
+  set at creation; not re-editable afterward (Detail is, Frame isn't — a
+  deliberate simplification, not an oversight).
+- **Detail**: prerequisites, description, Given/When/Then acceptance
+  criteria editor, dependencies on other stories (`story_dependency`), NFR
+  fields, assumptions/exclusions — `stories/actions.ts`. Every save
+  re-enqueues embedding (EPIC 10) so duplicate detection stays current.
+- **Check** (`runStoryCheck`, client-invoked so results render without a
+  page reload — `StoryCheckPanel.tsx`):
+  - Guardrail evaluation reuses EPIC 9's `evaluateGuardrails` directly
+  - Duplicate detection reuses EPIC 10's retrieval function
+    (`checkDuplicateStories`) scoped to `UserStory`, threshold 0.85
+    similarity — returns no matches gracefully if the story hasn't
+    finished embedding yet (embedding is async) or if no embedding model
+    is configured
+  - `guardrail_pass` persists on the story row so "Submit for review" can
+    gate on it without re-running the check every time
+- **Review**: any project member (not Lead-gated — §3.6 stage 4 says "peer
+  or Lead," unlike Epic review which is Lead-only); approve or
+  return-for-rework, which correctly re-enters Check per the spec (status
+  goes back to an editable state, not all the way to Draft).
+- **Publish**: §8 rule 5 hard gate enforced — blocked without at least one
+  `Implements` trace link to a confirmed decision, verified against the
+  live database (both the blocked and unblocked paths). Calls the same
+  EPIC 14 stub client as Epic publish.
 
-**Depends on:** EPIC 8 (parent epics), EPIC 9, EPIC 10, EPIC 14 (publish).
+**Depends on:** EPIC 8 (parent epics), EPIC 9, EPIC 10, EPIC 14 (publish —
+stubbed).
 
 ---
 
@@ -414,14 +432,18 @@ cheaply (e.g. consistent owner/status columns).
 
 ---
 
-## EPIC 14 — Agile Studio Integration
+## EPIC 14 — Agile Studio Integration — 🟡 stub implemented (Phase 5)
+
 **Why:** The requirements assume this is a same-platform object reference; in
 the standalone build it's a real external integration.
 **Traces to:** §6 Outbound, §8 rule 6–7.
 
-- Stub client first: same interface as the real REST client, mocked
-  responses, so Phase 5/6 Publish steps aren't blocked (resolved decision,
-  `EXECUTION_PLAN.md` §3.E) — **S**
+- ✅ Stub client: same interface the real REST client will implement,
+  mocked responses (`src/lib/agileStudio/client.ts`) — built during Phase 5
+  rather than waiting for Phase 6, so EPIC 8/11 Publish steps weren't
+  blocked (resolved decision, `EXECUTION_PLAN.md` §3.E). EPIC 8 and EPIC 11
+  publish actions both call it and store the returned reference on
+  `agile_studio_ref`, verified against the live database.
 - Real REST client against Pega Infinity's Agile Studio APIs — OAuth2
   client-credentials, matching the pattern already built and removed earlier
   in this project (`src/lib/pega/*` before the Pega pivot) — can be
@@ -434,8 +456,9 @@ the standalone build it's a real external integration.
   read-back sync (§8 rule 7) — **S**
 - Backlog import (used by EPIC 1 Seed stage) — **M**
 
-**Depends on:** EPIC 0. The stub ships in Phase 6; swapping to the real
-client is deferred until a Pega Infinity + Agile Studio instance exists.
+**Depends on:** EPIC 0. Swapping the stub for the real client (remaining
+items above) is deferred until a Pega Infinity + Agile Studio instance
+exists — isolated to this one file, no call-site changes needed elsewhere.
 
 ---
 

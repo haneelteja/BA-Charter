@@ -95,6 +95,18 @@ export default async function ProjectPage({
         >
           Guardrails
         </Link>
+        <Link
+          href={`/projects/${id}/epics`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Epics
+        </Link>
+        <Link
+          href={`/projects/${id}/stories`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Stories
+        </Link>
       </div>
 
       <h2 className="mt-8 text-sm font-medium">Members</h2>
@@ -148,8 +160,9 @@ export default async function ProjectPage({
       )}
 
       <div className="mt-10 rounded-md border border-neutral-200 p-4 text-sm text-neutral-500 dark:border-neutral-800">
-        Epics, stories and change requests land in later phases (see
-        docs/EXECUTION_PLAN.md).
+        Change requests land in a later phase (see docs/EXECUTION_PLAN.md).
+        Agile Studio publish uses a stub reference until a real Pega Infinity
+        instance is connected (EPIC 14).
       </div>
     </main>
   );
