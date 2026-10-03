@@ -4,10 +4,12 @@ import { extractCandidates, type ExtractionResult } from "@/lib/ai/extraction";
 import { logAuditEvent } from "@/lib/audit/log";
 import type { JobPayloadMap } from "@/lib/jobs/types";
 
-type CandidateRow = ExtractionResult["decisions"][number] & {
-  candidateType: "Decision" | "ActionItem" | "Clarification" | "Risk" | "ChangeSignal";
-  suggestedDueDate?: string | null;
-};
+type CandidateRow =
+  | (ExtractionResult["decisions"][number] & { candidateType: "Decision" })
+  | (ExtractionResult["actionItems"][number] & { candidateType: "ActionItem" })
+  | (ExtractionResult["clarifications"][number] & { candidateType: "Clarification" })
+  | (ExtractionResult["risks"][number] & { candidateType: "Risk" })
+  | (ExtractionResult["changeSignals"][number] & { candidateType: "ChangeSignal" });
 
 export async function handleExtractCandidates(
   payload: JobPayloadMap["extract_candidates"]

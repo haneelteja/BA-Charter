@@ -139,11 +139,20 @@ confirmation (external services get built, not assumed).
   Candidate-equivalent value and the BPMN flow makes clear decision/
   action_item/clarification rows aren't created until Commit, after minutes
   distribution — see migration comment for the full reasoning.
-- **Not yet live-tested**: no LLM provider or Resend API key was available
-  in this environment. All non-LLM logic (candidate review, contradiction
-  resolution, commit, dispute, job queueing) was verified directly against
-  the live Supabase project; the `generateObject`/`generateText` calls
-  themselves and the Resend send are implemented but unexercised.
+- **Live-tested** against OpenRouter (`openai/gpt-4.1-mini`) and Resend:
+  `extractCandidates` correctly produced all five candidate kinds including
+  a true contradiction detection, `generateMinutesDraft` produced valid
+  HTML, and a real email sent via Resend. Found and fixed a real bug in the
+  process: OpenAI's strict structured-output mode requires every schema
+  property in `required` — zod's `.optional()` (vs. `.nullable()`) drops a
+  key from `required` when converted to JSON Schema, which OpenAI then
+  rejects outright. Every maybe-absent field in the extraction schema is
+  `.nullable()` only now. Also added `maxOutputTokens` caps to both calls
+  (sane regardless of the account-credit limit that surfaced it).
+- **OpenRouter** added as a third BYOK provider (migration `0011`) — one
+  key, any model id (e.g. `openai/gpt-4.1-mini`, `anthropic/claude-sonnet-4.5`)
+  via the OpenAI-compatible SDK pointed at OpenRouter's base URL. Now the
+  default option in Settings.
 
 ---
 

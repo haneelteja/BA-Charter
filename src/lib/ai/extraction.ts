@@ -1,23 +1,29 @@
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 
+// OpenAI's strict structured-output mode requires every object property to
+// appear in the schema's "required" array — there is no true optional
+// field, only nullable ones. zod's `.optional()` drops a key from
+// `required` when converted to JSON Schema, which OpenAI then rejects
+// outright ("Missing 'suggestedOwner'"). Every maybe-absent field below is
+// `.nullable()` only — the model returns `null`, never an omitted key.
 const candidateItem = z.object({
   statement: z.string(),
-  suggestedOwner: z.string().nullable().optional(),
+  suggestedOwner: z.string().nullable(),
   confidenceScore: z.number().min(0).max(1),
-  sourceUtteranceSequenceNo: z.number().int().nullable().optional(),
+  sourceUtteranceSequenceNo: z.number().int().nullable(),
 });
 
 const extractionSchema = z.object({
   decisions: z.array(
     candidateItem.extend({
-      contradictsExistingDecisionId: z.string().nullable().optional(),
-      contradictionExplanation: z.string().nullable().optional(),
+      contradictsExistingDecisionId: z.string().nullable(),
+      contradictionExplanation: z.string().nullable(),
     })
   ),
   actionItems: z.array(
     candidateItem.extend({
-      suggestedDueDate: z.string().nullable().optional(),
+      suggestedDueDate: z.string().nullable(),
     })
   ),
   clarifications: z.array(candidateItem),
@@ -57,6 +63,7 @@ export async function extractCandidates(input: ExtractionInput): Promise<Extract
   const { object } = await generateObject({
     model: input.model,
     schema: extractionSchema,
+    maxOutputTokens: 4096,
     prompt: `You are a business analyst assistant extracting structured content from a meeting transcript.
 
 Existing confirmed project decisions:

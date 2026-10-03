@@ -3,9 +3,10 @@ import { saveLlmSetting, clearLlmSetting } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const MODEL_HINTS: Record<string, string> = {
-  openai: "e.g. gpt-4.1, gpt-4.1-mini",
-  anthropic: "e.g. claude-sonnet-5, claude-opus-5",
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter (recommended — one key, any model)",
 };
 
 export default async function SettingsPage() {
@@ -52,17 +53,18 @@ export default async function SettingsPage() {
         <select
           name="provider"
           required
-          defaultValue={existing?.provider ?? "openai"}
+          defaultValue={existing?.provider ?? "openrouter"}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         >
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
+          <option value="openrouter">{PROVIDER_LABELS.openrouter}</option>
+          <option value="openai">{PROVIDER_LABELS.openai}</option>
+          <option value="anthropic">{PROVIDER_LABELS.anthropic}</option>
         </select>
 
         <label className="text-xs text-neutral-500">Model</label>
         <input
           name="model"
-          placeholder={MODEL_HINTS.openai}
+          placeholder="e.g. openai/gpt-4.1-mini or anthropic/claude-sonnet-4.5 (OpenRouter), gpt-4.1-mini (OpenAI), claude-sonnet-5 (Anthropic)"
           required
           defaultValue={existing?.model ?? ""}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"

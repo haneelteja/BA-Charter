@@ -4,7 +4,7 @@ import type { LanguageModel } from "ai";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { decryptSecret } from "@/lib/crypto";
 
-export const SUPPORTED_PROVIDERS = ["openai", "anthropic"] as const;
+export const SUPPORTED_PROVIDERS = ["openai", "anthropic", "openrouter"] as const;
 export type LlmProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
 /**
@@ -12,6 +12,11 @@ export type LlmProvider = (typeof SUPPORTED_PROVIDERS)[number];
  * not a hardcoded platform provider). Every AI call site in EPIC 4/9/10/12
  * should go through this instead of importing a provider package directly,
  * so none of them need to branch on vendor.
+ *
+ * OpenRouter is the recommended provider: one key, every model (model id
+ * is the user's own choice, e.g. "openai/gpt-4.1-mini" or
+ * "anthropic/claude-sonnet-4.5") — uses the OpenAI-compatible SDK pointed at
+ * OpenRouter's base URL rather than a dedicated OpenRouter package.
  */
 export async function resolveUserLanguageModel(userId: string): Promise<LanguageModel> {
   const supabase = getSupabaseServiceRoleClient();
@@ -37,6 +42,8 @@ export async function resolveUserLanguageModel(userId: string): Promise<Language
       return createOpenAI({ apiKey })(data.model);
     case "anthropic":
       return createAnthropic({ apiKey })(data.model);
+    case "openrouter":
+      return createOpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1" })(data.model);
     default:
       throw new Error(`Unsupported provider: ${data.provider}`);
   }

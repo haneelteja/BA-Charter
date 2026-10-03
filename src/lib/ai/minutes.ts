@@ -27,6 +27,7 @@ export async function generateMinutesDraft(input: MinutesInput): Promise<Minutes
 
   const { text } = await generateText({
     model: input.model,
+    maxOutputTokens: 2048,
     prompt: `Write minutes of meeting as clean HTML (use <h2>, <ul>, <li>, <p> — no <html>/<body> wrapper) for a meeting titled "${
       input.interactionTitle ?? "Untitled meeting"
     }".
