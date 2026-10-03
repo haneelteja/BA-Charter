@@ -14,7 +14,12 @@ export type JobType =
 
 export interface JobPayloadMap {
   extract_candidates: { projectId: string; interactionId: string; userId: string };
-  embed_object: { projectId: string; objectType: string; objectId: string };
+  embed_object: {
+    projectId: string;
+    objectType: "Utterance" | "Decision" | "KnowledgeNode" | "UserStory";
+    objectId: string;
+    userId: string;
+  };
   sweep_action_item_overdue: Record<string, never>;
   sweep_clarification_ageing: Record<string, never>;
   promote_provisional_decisions: { projectId: string; interactionId: string; minutesId: string };

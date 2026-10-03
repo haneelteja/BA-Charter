@@ -3,6 +3,7 @@ import { handleExtractCandidates } from "./handlers/extractCandidates";
 import { handlePromoteProvisionalDecisions } from "./handlers/promoteProvisionalDecisions";
 import { handleSweepActionItemOverdue } from "./handlers/sweepActionItemOverdue";
 import { handleSweepClarificationAgeing } from "./handlers/sweepClarificationAgeing";
+import { handleEmbedObject } from "./handlers/embedObject";
 
 type Handler = (payload: unknown) => Promise<void>;
 
@@ -14,9 +15,8 @@ function notImplemented(jobType: JobType): Handler {
   };
 }
 
-// embed_object -> EPIC 10, retention_purge -> EPIC 17: still stubs,
-// registered so the queue/worker plumbing exercises every job type even
-// before its owning epic lands.
+// retention_purge -> EPIC 17: still a stub, registered so the queue/worker
+// plumbing exercises every job type even before its owning epic lands.
 export const handlers: Record<JobType, Handler> = {
   extract_candidates: (payload) =>
     handleExtractCandidates(payload as JobPayloadMap["extract_candidates"]),
@@ -24,6 +24,6 @@ export const handlers: Record<JobType, Handler> = {
     handlePromoteProvisionalDecisions(payload as JobPayloadMap["promote_provisional_decisions"]),
   sweep_action_item_overdue: () => handleSweepActionItemOverdue(),
   sweep_clarification_ageing: () => handleSweepClarificationAgeing(),
-  embed_object: notImplemented("embed_object"),
+  embed_object: (payload) => handleEmbedObject(payload as JobPayloadMap["embed_object"]),
   retention_purge: notImplemented("retention_purge"),
 };

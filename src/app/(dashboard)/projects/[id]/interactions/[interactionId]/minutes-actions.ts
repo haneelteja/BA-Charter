@@ -8,6 +8,7 @@ import { resolveUserLanguageModel } from "@/lib/ai/userModel";
 import { generateMinutesDraft } from "@/lib/ai/minutes";
 import { sendEmail } from "@/lib/email/resend";
 import { enqueueJob } from "@/lib/jobs/enqueue";
+import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
 type Supa = Awaited<ReturnType<typeof getSupabaseServerClient>>;
 
@@ -267,6 +268,8 @@ async function commitToCharter(
         .from("extraction_candidate")
         .update({ resulting_object_type: "Decision", resulting_object_id: decision.decision_id })
         .eq("candidate_id", candidate.candidate_id);
+
+      await enqueueEmbedding(supabase, projectId, "Decision", decision.decision_id, committedBy);
     } else if (candidate.candidate_type === "ActionItem") {
       const ownerId = await resolveOwnerUserId(supabase, projectId, candidate.suggested_owner, committedBy);
       const { data: actionItem, error: actionError } = await supabase

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
+import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
 async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
   const { data: auth } = await supabase.auth.getUser();
@@ -106,6 +107,8 @@ export async function answerClarification(projectId: string, formData: FormData)
     targetObjectId: clarificationId,
     newValue: { status: "Answered", answer_text: answerText, answered_by: answeredBy },
   });
+
+  await enqueueEmbedding(supabase, projectId, "Decision", decision.decision_id, user.id);
 
   revalidatePath(`/projects/${projectId}/clarifications`);
 }

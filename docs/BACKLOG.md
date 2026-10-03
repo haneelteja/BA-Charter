@@ -267,21 +267,28 @@ source), EPIC 0 (background sweep for escalation).
 
 ---
 
-## EPIC 9 — Guardrail Engine
+## EPIC 9 — Guardrail Engine — ✅ implemented (Phase 4)
+
 **Why:** Shared by User Story Authoring's Check stage and reusable by Change
 Request Analysis.
 **Traces to:** §3.6 stage 3, `guardrail_rule` / `glossary_term` tables,
 `/analysis/guardrail-check`.
 
-- Glossary management: preferred/banned forms per project — **S**
-- Guardrail rule types: Vocabulary, SentencePattern, StructureCheck,
-  Completeness, each with severity (Info/Warning/Blocking) — **M**
-- Evaluation service: runs a story payload against active rules, returns
-  findings with suggested corrections — **L**
-- Completeness sub-checks called out explicitly in requirements: negative
-  paths, error handling, permissions, data migration — **M**
-- BA resolution UI: accept or dismiss each finding, Blocking severity prevents
-  progression until resolved — **M**
+- Glossary management (preferred/banned forms) and guardrail rule CRUD
+  (Vocabulary/SentencePattern/StructureCheck/Completeness, Info/Warning/
+  Blocking severity, active/inactive toggle) — `guardrails/actions.ts`
+- Evaluation: Vocabulary is deterministic exact-match scanning (more
+  reliable than an LLM for banned-term detection), everything else —
+  SentencePattern, StructureCheck, and the explicit completeness sub-checks
+  (negative paths, error handling, permissions, data migration) — is one
+  LLM call — `src/lib/ai/guardrails.ts`
+- **Interactive checker, not a persisted gate**: there's no `user_story` row
+  to attach findings/dispositions to yet (EPIC 11 not built), so this ships
+  as a standalone tester — paste a story-shaped payload, get findings back.
+  The engine itself (`evaluateGuardrails`) is what EPIC 11's Check stage
+  will call directly once stories exist; the accept/dismiss-with-persistence
+  UI described in the original story is deferred until there's something
+  real to persist it against.
 
 **Depends on:** EPIC 2 (glossary/rules are project-scoped charter-adjacent
 config), EPIC 4's provider-agnostic LLM harness (reused for rule evaluation,
@@ -289,20 +296,42 @@ not a new provider integration).
 
 ---
 
-## EPIC 10 — Retrieval Service
+## EPIC 10 — Retrieval Service — ✅ implemented (Phase 4)
+
 **Why:** Powers semantic search, duplicate detection, and change-impact
 traversal. Build once, reuse three times.
 **Traces to:** §6 Processing services, `/retrieval/search`.
 
-- Embedding pipeline: embed utterances, decisions, knowledge nodes, user
-  stories on write (pgvector columns + background job). A project's embedding
-  model is fixed at the project level (not per-user) so vectors stay
-  comparable within a project even though generation calls are BYOK per user
-  (resolved decision, `EXECUTION_PLAN.md` §3.C) — **L**
-- `/retrieval/search` equivalent: scoped semantic search across the enabled
-  object types, ranked, with source references — **M**
-- Re-embedding on edit (versioned content must stay searchable against its
-  current version) — **S**
+- Embedding pipeline: `embed_object` job (real handler now, was a Phase 0
+  stub) embeds utterance/decision/knowledge_node/user_story content on
+  write, enqueued from every existing write point (interaction capture,
+  charter create/update, Meeting Ingestion commit, clarification answer) —
+  `src/jobs/handlers/embedObject.ts`. Skips enqueueing entirely for a
+  project with no embedding model configured, so it's a progressive
+  enhancement, not a hard requirement.
+- Embedding generation is per-user BYOK but the *model* is fixed at project
+  level (resolved decision, `EXECUTION_PLAN.md` §3.C) — a Lead BA sets
+  `embedding_provider`/`embedding_model` on the project page;
+  `resolveProjectEmbeddingModel` then borrows the acting user's matching
+  credential. Constrained to openai/openrouter (Anthropic has no embeddings
+  endpoint) via a CHECK constraint.
+- `/retrieval/search` equivalent: `search_project_embeddings` — a single
+  `SECURITY DEFINER` Postgres function unioning ranked results across all
+  four embeddable tables, with an explicit membership check inside (it
+  bypasses RLS to read across tables efficiently, but not the "must be a
+  project member" floor every other table enforces) — `search/page.tsx`.
+- Re-embedding on edit: not a separate code path — every write point just
+  enqueues `embed_object` again, which always overwrites the embedding
+  column rather than appending to it.
+
+**Verified against the live Supabase project**: ranking was tested with
+fabricated vectors (confirmed correct cosine-similarity ordering, ~0.997 for
+a near-identical vector vs. -0.997 for a near-opposite one) since no LLM/
+embeddings API key was available in this environment to generate real ones;
+the membership guard was confirmed to reject a non-member's search attempt.
+The embeddings API call itself (`resolveProjectEmbeddingModel` /
+`embedText`) is implemented but unexercised pending a credential — same gap
+as Phase 2 before OpenRouter was wired in.
 
 **Depends on:** EPIC 0 (pgvector, background jobs), EPIC 3/2/5 (content to
 index as it's created).

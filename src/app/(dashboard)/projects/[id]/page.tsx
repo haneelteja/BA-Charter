@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getProjectRole, isLead } from "@/lib/projects/role";
+import { setEmbeddingConfig } from "./settings-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,10 @@ export default async function ProjectPage({
 }) {
   const { id } = await params;
   const supabase = await getSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    throw new Error("Not signed in.");
+  }
 
   const { data: project, error } = await supabase
     .from("project")
@@ -39,6 +45,10 @@ export default async function ProjectPage({
     role_name: m.role_name,
     user: (users ?? []).find((u) => u.user_id === m.user_id) ?? null,
   }));
+
+  const role = await getProjectRole(supabase, id, auth.user.id);
+  const userIsLead = isLead(role);
+  const setEmbeddingConfigForProject = setEmbeddingConfig.bind(null, id);
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -73,6 +83,18 @@ export default async function ProjectPage({
         >
           Clarifications
         </Link>
+        <Link
+          href={`/projects/${id}/search`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Search
+        </Link>
+        <Link
+          href={`/projects/${id}/guardrails`}
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          Guardrails
+        </Link>
       </div>
 
       <h2 className="mt-8 text-sm font-medium">Members</h2>
@@ -83,6 +105,47 @@ export default async function ProjectPage({
           </li>
         ))}
       </ul>
+
+      <h2 className="mt-8 text-sm font-medium">Embedding model</h2>
+      {project.embedding_provider && project.embedding_model ? (
+        <p className="mt-2 text-sm text-neutral-500">
+          {project.embedding_provider} / {project.embedding_model} — search and retrieval are active.
+        </p>
+      ) : (
+        <p className="mt-2 text-sm text-neutral-500">
+          Not configured yet — content won&apos;t be searchable until a Lead BA sets a model.
+        </p>
+      )}
+      {userIsLead && (
+        <form action={setEmbeddingConfigForProject} className="mt-3 flex flex-wrap items-end gap-2">
+          <div>
+            <label className="block text-xs text-neutral-500">Provider</label>
+            <select
+              name="embedding_provider"
+              defaultValue={project.embedding_provider ?? "openrouter"}
+              className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+            >
+              <option value="openrouter">OpenRouter</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-neutral-500">Model</label>
+            <input
+              name="embedding_model"
+              defaultValue={project.embedding_model ?? ""}
+              placeholder="e.g. openai/text-embedding-3-small"
+              className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            Save
+          </button>
+        </form>
+      )}
 
       <div className="mt-10 rounded-md border border-neutral-200 p-4 text-sm text-neutral-500 dark:border-neutral-800">
         Epics, stories and change requests land in later phases (see

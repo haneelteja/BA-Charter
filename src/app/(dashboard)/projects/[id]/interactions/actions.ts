@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { parseUtterances } from "@/lib/transcript/parse";
+import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
 const SOURCE_TYPES = ["Transcript", "Email", "Chat", "ManualNote", "Document"] as const;
 
@@ -66,23 +67,30 @@ export async function createInteraction(projectId: string, formData: FormData) {
 
   const utterances = parseUtterances(content);
   if (utterances.length > 0) {
-    const { error: utteranceError } = await supabase.from("utterance").insert(
-      utterances.map((u) => ({
-        interaction_id: interaction.interaction_id,
-        sequence_no: u.sequenceNo,
-        speaker_label: u.speakerLabel,
-        content: u.content,
-      }))
-    );
+    const { data: insertedUtterances, error: utteranceError } = await supabase
+      .from("utterance")
+      .insert(
+        utterances.map((u) => ({
+          interaction_id: interaction.interaction_id,
+          sequence_no: u.sequenceNo,
+          speaker_label: u.speakerLabel,
+          content: u.content,
+        }))
+      )
+      .select("utterance_id");
 
     if (utteranceError) {
       throw new Error(`Failed to store utterances: ${utteranceError.message}`);
     }
+
+    for (const u of insertedUtterances ?? []) {
+      await enqueueEmbedding(supabase, projectId, "Utterance", u.utterance_id, auth.user.id);
+    }
   }
 
-  // "Indexed" here means normalised into utterances, not semantic indexing —
-  // that's EPIC 10's embedding pipeline, not built yet. Extraction (EPIC 4)
-  // is the next real stage this status needs to reach.
+  // "Indexed" here means normalised into utterances — semantic indexing
+  // (embedding, enqueued above) runs async via the job queue and doesn't
+  // gate this status. Extraction (EPIC 4) is the next real stage.
   await supabase
     .from("interaction")
     .update({ processing_status: "Indexed" })

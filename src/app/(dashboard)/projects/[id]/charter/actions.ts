@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { getProjectRole, isLead } from "@/lib/projects/role";
+import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
 const LAYERS = ["SystemOverview", "FunctionalArea", "CapabilityRule", "ImplementationNote"] as const;
 export type CharterLayer = (typeof LAYERS)[number];
@@ -67,6 +68,8 @@ export async function createKnowledgeNode(projectId: string, formData: FormData)
     newValue: { layer, title, body },
   });
 
+  await enqueueEmbedding(supabase, projectId, "KnowledgeNode", node.knowledge_node_id, user.id);
+
   revalidatePath(`/projects/${projectId}/charter`);
 }
 
@@ -126,6 +129,8 @@ export async function updateKnowledgeNode(
     priorValue: { title: prior.title, body: prior.body, version_no: prior.version_no },
     newValue: { title, body, version_no: prior.version_no + 1 },
   });
+
+  await enqueueEmbedding(supabase, projectId, "KnowledgeNode", nodeId, user.id);
 
   revalidatePath(`/projects/${projectId}/charter`);
 }
