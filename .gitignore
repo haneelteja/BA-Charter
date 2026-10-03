@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Supabase CLI local cache (project-ref, pooler URL, version pins)
 /supabase/.temp/
+
+# Claude Code local tool settings (machine-specific permissions/lock state)
+/.claude/
