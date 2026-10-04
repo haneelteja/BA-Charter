@@ -53,3 +53,5 @@ next-env.d.ts
 
 # Claude Code local tool settings (machine-specific permissions/lock state)
 /.claude/
+
+.vercel

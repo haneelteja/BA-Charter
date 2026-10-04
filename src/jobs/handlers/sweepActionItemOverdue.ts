@@ -1,8 +1,5 @@
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { logAuditEvent } from "@/lib/audit/log";
-import { enqueueJob } from "@/lib/jobs/enqueue";
-
-const SWEEP_INTERVAL_HOURS = 1;
 
 /**
  * §3.3: "Escalates to the Lead Business Analyst when overdue." There's no
@@ -10,8 +7,9 @@ const SWEEP_INTERVAL_HOURS = 1;
  * Escalated) plus the "Overdue" badge the worklist page already computes
  * from due_date — a Lead BA sees it there. escalated_at makes this
  * idempotent: once flagged, a later sweep tick won't re-escalate the same
- * item. Self-reschedules via the job queue rather than relying on external
- * cron (EXECUTION_PLAN.md §3.A — self-hosted worker, no cron dependency).
+ * item. Recurrence is owned by Vercel Cron (src/app/api/cron/sweeps/route.ts)
+ * rather than self-rescheduling through the job queue — see
+ * src/lib/jobs/enqueue.ts for why there's no standing worker to chain against.
  */
 export async function handleSweepActionItemOverdue(): Promise<void> {
   const supabase = getSupabaseServiceRoleClient();
@@ -47,8 +45,4 @@ export async function handleSweepActionItemOverdue(): Promise<void> {
       newValue: { title: item.title, reason: "overdue" },
     });
   }
-
-  const runAfter = new Date();
-  runAfter.setHours(runAfter.getHours() + SWEEP_INTERVAL_HOURS);
-  await enqueueJob("sweep_action_item_overdue", {}, { runAfter });
 }

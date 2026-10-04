@@ -72,10 +72,27 @@ built on. Flagging them so you can object before Phase 0 starts.
 All gaps identified during planning have been decided. No open questions
 remain blocking any phase.
 
-### A. Background job infrastructure — **self-hosted worker**
+### A. Background job infrastructure — **Postgres queue, serverless-native (revised)**
 
-A Postgres job table + a Node worker process polling it. No third-party queue
-vendor. Covers: extraction (EPIC 4), embeddings (EPIC 10), SLA/ageing sweeps
+A Postgres job table (`job_queue` + `claim_next_job`/`complete_job`/`fail_job`
+RPCs), but **no standing worker process in production**. Originally scoped as
+a self-hosted Node worker continuously polling the table; revised once it
+became clear nothing was actually hosting that process. Vercel's Fluid
+Compute gives every plan (including Hobby) 300s of `after()` background
+execution per request, so:
+
+- `enqueueJob()` inserts the row, then schedules `processPendingJobs()` via
+  `after()` — the same request that enqueues something drains a few due jobs
+  right after responding, with no extra infrastructure.
+- Vercel Cron (`vercel.json` → `/api/cron/sweeps`, every 6h, authenticated via
+  `CRON_SECRET`) owns recurrence for the sweeps that used to self-reschedule
+  through the queue, and acts as a safety net for anything due that no
+  request happened to trigger (e.g. `promote_provisional_decisions`,
+  scheduled hours ahead).
+- `src/jobs/worker.ts` (`npm run worker`) still exists purely as a local-dev
+  convenience poller — not run anywhere in production.
+
+Covers: extraction (EPIC 4), embeddings (EPIC 10), SLA/ageing sweeps
 (EPIC 5/6/7), acknowledgement-window promotion (EPIC 5), retention purge
 (EPIC 17).
 

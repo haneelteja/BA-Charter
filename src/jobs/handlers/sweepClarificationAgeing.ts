@@ -1,14 +1,12 @@
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { logAuditEvent } from "@/lib/audit/log";
-import { enqueueJob } from "@/lib/jobs/enqueue";
-
-const SWEEP_INTERVAL_HOURS = 1;
 
 /**
  * §3.4: "items unanswered beyond a configurable threshold are flagged in
  * the workspace and reported to the Lead BA." Threshold is per-project
- * (project.clarification_ageing_days). Same escalated_at idempotency and
- * self-rescheduling pattern as the action item sweep.
+ * (project.clarification_ageing_days). Same escalated_at idempotency as
+ * the action item sweep; recurrence is Vercel Cron (see
+ * src/app/api/cron/sweeps/route.ts), not self-rescheduling.
  */
 export async function handleSweepClarificationAgeing(): Promise<void> {
   const supabase = getSupabaseServiceRoleClient();
@@ -47,8 +45,4 @@ export async function handleSweepClarificationAgeing(): Promise<void> {
       newValue: { question: c.question, reason: "ageing" },
     });
   }
-
-  const runAfter = new Date();
-  runAfter.setHours(runAfter.getHours() + SWEEP_INTERVAL_HOURS);
-  await enqueueJob("sweep_clarification_ageing", {}, { runAfter });
 }
