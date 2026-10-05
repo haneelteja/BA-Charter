@@ -409,7 +409,7 @@ EPIC 10, EPIC 11 (edits target published stories), EPIC 14, EPIC 15.
 
 ---
 
-## EPIC 13 — Cross-Project Workspace
+## EPIC 13 — Cross-Project Workspace — ✅ implemented (Phase 8)
 **Traces to:** §4.
 
 - My action items — aggregated open actions across all member projects, with

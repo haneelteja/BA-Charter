@@ -38,8 +38,11 @@ export default async function WorkspacePage() {
       <h1 className="text-2xl font-semibold">Your projects</h1>
       <p className="mt-1 text-sm text-neutral-500">
         Every project you&apos;re a member of. Full context opens within the
-        owning project; the cross-project workspace (My action items, My
-        clarifications, Call preparation) lands in a later phase.
+        owning project; see the{" "}
+        <Link href="/workspace" className="underline">
+          workspace
+        </Link>{" "}
+        for everything aggregated across all of them.
       </p>
 
       {error && (

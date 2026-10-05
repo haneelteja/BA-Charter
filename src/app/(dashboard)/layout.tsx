@@ -19,6 +19,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <Link href="/" className="font-semibold">
             BA Charter
           </Link>
+          <Link href="/workspace" className="text-neutral-500 hover:text-foreground">
+            Workspace
+          </Link>
           <Link href="/settings" className="text-neutral-500 hover:text-foreground">
             Settings
           </Link>
