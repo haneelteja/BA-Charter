@@ -84,8 +84,9 @@ execution per request, so:
 - `enqueueJob()` inserts the row, then schedules `processPendingJobs()` via
   `after()` — the same request that enqueues something drains a few due jobs
   right after responding, with no extra infrastructure.
-- Vercel Cron (`vercel.json` → `/api/cron/sweeps`, every 6h, authenticated via
-  `CRON_SECRET`) owns recurrence for the sweeps that used to self-reschedule
+- Vercel Cron (`vercel.json` → `/api/cron/sweeps`, daily — Hobby plan caps
+  cron to once/day, authenticated via `CRON_SECRET`) owns recurrence for the
+  sweeps that used to self-reschedule
   through the queue, and acts as a safety net for anything due that no
   request happened to trigger (e.g. `promote_provisional_decisions`,
   scheduled hours ahead).
