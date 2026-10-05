@@ -381,7 +381,7 @@ stubbed).
 
 ---
 
-## EPIC 12 — Change Request Analysis Case
+## EPIC 12 — Change Request Analysis Case — ✅ implemented (Phase 7)
 **Traces to:** §3.7 (all 5 stages).
 
 - **Intake**: description, requester, source reference, urgency — **S**
