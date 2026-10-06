@@ -113,6 +113,7 @@ export default async function StoryDetailPage({
 
       {isEditable && (
         <form action={updateForStory} className="mt-6 flex flex-col gap-2">
+          <input type="hidden" name="expected_version_no" value={story.version_no} />
           <h2 className="text-sm font-medium">Detail</h2>
           <textarea
             name="description"

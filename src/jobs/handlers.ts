@@ -4,19 +4,10 @@ import { handlePromoteProvisionalDecisions } from "./handlers/promoteProvisional
 import { handleSweepActionItemOverdue } from "./handlers/sweepActionItemOverdue";
 import { handleSweepClarificationAgeing } from "./handlers/sweepClarificationAgeing";
 import { handleEmbedObject } from "./handlers/embedObject";
+import { handleRetentionPurge } from "./handlers/retentionPurge";
 
 type Handler = (payload: unknown) => Promise<void>;
 
-function notImplemented(jobType: JobType): Handler {
-  return async () => {
-    throw new Error(
-      `Handler for "${jobType}" is not implemented yet — it belongs to a later phase (see docs/EXECUTION_PLAN.md).`
-    );
-  };
-}
-
-// retention_purge -> EPIC 17: still a stub, registered so the queue/worker
-// plumbing exercises every job type even before its owning epic lands.
 export const handlers: Record<JobType, Handler> = {
   extract_candidates: (payload) =>
     handleExtractCandidates(payload as JobPayloadMap["extract_candidates"]),
@@ -25,5 +16,5 @@ export const handlers: Record<JobType, Handler> = {
   sweep_action_item_overdue: () => handleSweepActionItemOverdue(),
   sweep_clarification_ageing: () => handleSweepClarificationAgeing(),
   embed_object: (payload) => handleEmbedObject(payload as JobPayloadMap["embed_object"]),
-  retention_purge: notImplemented("retention_purge"),
+  retention_purge: () => handleRetentionPurge(),
 };

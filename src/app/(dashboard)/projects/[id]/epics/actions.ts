@@ -190,6 +190,15 @@ export async function reviewEpic(projectId: string, epicId: string, formData: Fo
     .eq("epic_id", epicId);
   if (updateError) throw new Error(`Failed to update epic status: ${updateError.message}`);
 
+  await logAuditEvent(supabase, {
+    projectId,
+    actorUserId: user.id,
+    eventType: outcome === "Approved" ? "Approved" : "StatusChanged",
+    targetObjectType: "Epic",
+    targetObjectId: epicId,
+    newValue: { outcome, comments },
+  });
+
   revalidatePath(`/projects/${projectId}/epics/${epicId}`);
 }
 

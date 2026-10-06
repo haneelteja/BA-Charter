@@ -82,13 +82,16 @@ export function StoryChecker({ projectId }: { projectId: string }) {
       </form>
 
       {error && (
-        <div className="mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div
+          role="alert"
+          className="mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+        >
           {error}
         </div>
       )}
 
       {findings && (
-        <div className="mt-6">
+        <div className="mt-6" role="status" aria-live="polite">
           <h3 className="text-sm font-medium">
             {findings.length === 0 ? "No findings — clean." : `${findings.length} finding(s)`}
           </h3>

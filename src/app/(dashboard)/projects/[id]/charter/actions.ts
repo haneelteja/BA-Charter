@@ -80,6 +80,13 @@ export async function createKnowledgeNode(projectId: string, formData: FormData)
  * preserved permanently in audit_event.prior_value — nothing is lost, it's
  * just not a second live copy of the node.
  */
+/**
+ * §7 optimistic concurrency (EXECUTION_PLAN.md EPIC 16): the form round-trips
+ * the version_no it was rendered with; the update only applies if that
+ * still matches the current row. A zero-row result means someone else
+ * saved a newer version in between — surfaced as a real conflict error
+ * instead of silently overwriting their edit (last-write-wins).
+ */
 export async function updateKnowledgeNode(
   projectId: string,
   nodeId: string,
@@ -87,6 +94,7 @@ export async function updateKnowledgeNode(
 ) {
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
+  const expectedVersionNo = Number(formData.get("expected_version_no") ?? "");
 
   if (!title) {
     throw new Error("Title is required.");
@@ -105,7 +113,7 @@ export async function updateKnowledgeNode(
     throw new Error(`Failed to load charter entry: ${fetchError.message}`);
   }
 
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("knowledge_node")
     .update({
       title,
@@ -114,10 +122,17 @@ export async function updateKnowledgeNode(
       last_confirmed_by: user.id,
       last_confirmed_at: new Date().toISOString(),
     })
-    .eq("knowledge_node_id", nodeId);
+    .eq("knowledge_node_id", nodeId)
+    .eq("version_no", expectedVersionNo)
+    .select("knowledge_node_id");
 
   if (updateError) {
     throw new Error(`Failed to update charter entry: ${updateError.message}`);
+  }
+  if (!updated || updated.length === 0) {
+    throw new Error(
+      "This charter entry was edited by someone else since you loaded it. Reload the page and reapply your changes."
+    );
   }
 
   await logAuditEvent(supabase, {

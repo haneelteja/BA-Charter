@@ -476,7 +476,7 @@ exists — isolated to this one file, no call-site changes needed elsewhere.
 
 ---
 
-## EPIC 16 — Audit, Traceability, Concurrency & Accessibility
+## EPIC 16 — Audit, Traceability, Concurrency & Accessibility — ✅ implemented (Phase 9, see note)
 **Why:** These are not a late-stage pass — the requirements state every
 confirmation/approval/publication/model change is audited, every generated
 statement keeps its source reference, and concurrent edits are surfaced, not
@@ -500,9 +500,44 @@ here so it isn't silently dropped under schedule pressure.
 **Depends on:** nothing new — this is a lens applied across every epic above,
 with its own line items so it's plannable and demonstrable rather than vague.
 
+**Phase 9 verification pass — what was actually found and done:**
+
+- Audit checklist ran against every `actions.ts` across every case type.
+  Found and fixed three real gaps: `acceptCandidate`/`rejectCandidate`/
+  `revertCandidate` (confirm-actions.ts) had zero audit coverage despite
+  `acceptCandidate` being the literal confirmation event §7 requires;
+  `reviewEpic` and `reviewStory` recorded the Approve/ReturnForRework
+  decision in the `review` table but never wrote an `audit_event` for it.
+  All five now log. Routine non-confirming status flips (start/complete an
+  action item, mark a clarification asked, etc.) are deliberately left
+  unaudited, matching the existing pattern elsewhere.
+- Traceability checklist: verified `source_utterance_id` propagates
+  end-to-end through `commitToCharter` (Decision/ActionItem/Clarification
+  all carry it) and through `extractCandidates`'s candidate inserts. No
+  gap found.
+- Optimistic concurrency: implemented and verified against the real
+  database (not just typechecked) on `updateKnowledgeNode` and
+  `updateStoryDetail` — the two actions where a BA edits free-text content
+  that another BA could be editing concurrently. `decision` has no
+  equivalent direct-edit action yet (decisions are append-only via
+  supersession, not edited in place), so there's nothing to retrofit there.
+- Accessibility: added `role="alert"` / `role="status" aria-live="polite"`
+  to every dynamic result/error panel (StoryChecker, StoryCheckPanel,
+  AnalysisPanel, BrainstormPanel) so screen readers announce outcomes
+  without a page reload. A full WCAG 2.1 AA pass (contrast ratios, focus
+  order, label associations across every form) was **not** done — it
+  needs actual browser/screen-reader testing this environment can't
+  perform, and claiming it here would be describing work not done. Flagged
+  as a real open item, not silently dropped.
+- Workspace load-time budget: existing indexes (`idx_action_item_owner_status`,
+  `idx_clarification_chasing_status`, etc.) already cover the per-user
+  filters the workspace queries use; RLS narrows every query to the
+  caller's own member projects before those filters even apply, so no new
+  index was needed at this scale.
+
 ---
 
-## EPIC 17 — Retention & Purge
+## EPIC 17 — Retention & Purge — ✅ implemented (Phase 9)
 **Traces to:** §7 Security.
 
 - Scheduled purge job: `interaction`/`utterance` rows past `purge_after` are
@@ -513,3 +548,12 @@ with its own line items so it's plannable and demonstrable rather than vague.
   referencing a purged interaction never dangle — **M**
 
 **Depends on:** EPIC 3, EPIC 0 (scheduler).
+
+`src/jobs/handlers/retentionPurge.ts` implements both halves against the
+`purge_after`/`is_purged` columns already on `interaction` from Phase 0:
+`handleRetentionPurge` (the scheduled sweep, wired into the daily cron
+alongside the other sweeps) and `purgeInteraction` (the shared redaction
+logic, also called directly by the manual "Purge now" action, Lead-BA-gated,
+on the interaction detail page). Verified against the real database that
+the due-query correctly includes/excludes rows by `purge_after`/`is_purged`
+and that redaction leaves the structural row and FK-referencing rows intact.

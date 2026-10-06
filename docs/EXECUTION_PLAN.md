@@ -24,7 +24,7 @@ prerequisites (Phase 0–2) land.
 | **6 — External publish** | EPIC 14 (Agile Studio) | 🟡 Stub only | Required by EPIC 8 and EPIC 11's Publish steps, and by EPIC 12's Propagate step. Built as a stub during Phase 5 itself rather than separately (§3.E), so Phase 5 wasn't blocked end-to-end. The real REST client (OAuth2, actual Agile Studio calls) is still deferred until a Pega Infinity instance exists. |
 | **7 — Change impact** | EPIC 12 (Change Request Analysis) | ✅ Done | The most dependency-heavy case type — needs charter, trace links, retrieval, guardrail reuse, and published stories to exist first. |
 | **8 — Cross-cutting workspace** | EPIC 13 | ✅ Done | A set of views over data produced by Phases 3, 5, 7. Build last, but sketch its query shape during Phase 0 so earlier tables carry the owner/status columns it needs. |
-| **9 — Hardening & launch** | EPIC 16 (close-out pass), EPIC 17 (Retention) | ⬜ Not started (partial: audit logging has run since Phase 0) | EPIC 16's checklist runs continuously per-epic, not just here — this phase is the final audit that nothing was skipped. |
+| **9 — Hardening & launch** | EPIC 16 (close-out pass), EPIC 17 (Retention) | ✅ Done (accessibility: partial, see docs/BACKLOG.md EPIC 16 note) | EPIC 16's checklist runs continuously per-epic, not just here — this phase is the final audit that nothing was skipped. |
 
 ```
 Phase 0 ──► Phase 1 ──► Phase 2 ──┬──► Phase 3 ──┐

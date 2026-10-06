@@ -157,6 +157,7 @@ export default async function CharterPage({
                     <details className="mt-3">
                       <summary className="cursor-pointer text-xs text-neutral-500">Edit</summary>
                       <form action={updateForNode} className="mt-2 flex flex-col gap-2">
+                        <input type="hidden" name="expected_version_no" value={node.version_no} />
                         <input
                           name="title"
                           defaultValue={node.title}

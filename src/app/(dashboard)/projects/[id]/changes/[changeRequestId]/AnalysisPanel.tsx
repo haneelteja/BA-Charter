@@ -31,12 +31,19 @@ export function AnalysisPanel({ projectId, changeRequestId }: { projectId: strin
       </button>
 
       {error && (
-        <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div
+          role="alert"
+          className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+        >
           {error}
         </div>
       )}
 
-      {summary && <p className="mt-3 text-xs text-neutral-500">{summary}</p>}
+      {summary && (
+        <p className="mt-3 text-xs text-neutral-500" role="status" aria-live="polite">
+          {summary}
+        </p>
+      )}
     </div>
   );
 }

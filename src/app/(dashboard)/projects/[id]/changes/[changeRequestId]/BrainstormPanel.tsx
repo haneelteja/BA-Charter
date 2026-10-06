@@ -45,17 +45,22 @@ export function BrainstormPanel({
       </button>
 
       {error && (
-        <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div
+          role="alert"
+          className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+        >
           {error}
         </div>
       )}
 
       {questions && questions.length === 0 && (
-        <p className="mt-3 text-xs text-neutral-500">No questions suggested.</p>
+        <p className="mt-3 text-xs text-neutral-500" role="status" aria-live="polite">
+          No questions suggested.
+        </p>
       )}
 
       {questions && questions.length > 0 && (
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul className="mt-4 flex flex-col gap-3" role="status" aria-live="polite">
           {questions.map((q, i) => (
             <li key={i} className="rounded-md border border-neutral-200 p-3 text-xs dark:border-neutral-800">
               <span className={`rounded-full px-2 py-0.5 ${PRIORITY_STYLES[q.priority]}`}>{q.priority}</span>

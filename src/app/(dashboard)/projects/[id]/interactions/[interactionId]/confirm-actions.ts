@@ -70,6 +70,15 @@ export async function acceptCandidate(projectId: string, interactionId: string, 
     throw new Error(`Failed to accept candidate: ${error.message}`);
   }
 
+  await logAuditEvent(supabase, {
+    projectId,
+    actorUserId: user.id,
+    eventType: "Confirmed",
+    targetObjectType: "ExtractionCandidate",
+    targetObjectId: candidateId,
+    newValue: { status: "Accepted", statement },
+  });
+
   revalidatePath(`/projects/${projectId}/interactions/${interactionId}`);
 }
 
@@ -88,6 +97,15 @@ export async function rejectCandidate(projectId: string, interactionId: string, 
     throw new Error(`Failed to reject candidate: ${error.message}`);
   }
 
+  await logAuditEvent(supabase, {
+    projectId,
+    actorUserId: user.id,
+    eventType: "Updated",
+    targetObjectType: "ExtractionCandidate",
+    targetObjectId: candidateId,
+    newValue: { status: "Rejected" },
+  });
+
   revalidatePath(`/projects/${projectId}/interactions/${interactionId}`);
 }
 
@@ -96,7 +114,7 @@ export async function revertCandidate(projectId: string, interactionId: string, 
   const candidateId = String(formData.get("candidate_id") ?? "");
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  const user = await requireUser(supabase);
 
   const { error } = await supabase
     .from("extraction_candidate")
@@ -106,6 +124,15 @@ export async function revertCandidate(projectId: string, interactionId: string, 
   if (error) {
     throw new Error(`Failed to revert candidate: ${error.message}`);
   }
+
+  await logAuditEvent(supabase, {
+    projectId,
+    actorUserId: user.id,
+    eventType: "Updated",
+    targetObjectType: "ExtractionCandidate",
+    targetObjectId: candidateId,
+    newValue: { status: "Pending", reverted: true },
+  });
 
   revalidatePath(`/projects/${projectId}/interactions/${interactionId}`);
 }

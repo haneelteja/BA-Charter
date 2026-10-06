@@ -6,6 +6,8 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { parseUtterances } from "@/lib/transcript/parse";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
+import { getProjectRole, isLead } from "@/lib/projects/role";
+import { purgeInteraction } from "@/jobs/handlers/retentionPurge";
 
 const SOURCE_TYPES = ["Transcript", "Email", "Chat", "ManualNote", "Document"] as const;
 
@@ -106,6 +108,24 @@ export async function createInteraction(projectId: string, formData: FormData) {
   });
 
   redirect(`/projects/${projectId}/interactions/${interaction.interaction_id}`);
+}
+
+/** EPIC 17, manual half: same anonymise semantics as the scheduled sweep, run on demand. Lead-BA-gated since it's an irreversible redaction. */
+export async function purgeInteractionNow(projectId: string, interactionId: string) {
+  const supabase = await getSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    throw new Error("Not signed in.");
+  }
+
+  const role = await getProjectRole(supabase, projectId, auth.user.id);
+  if (!isLead(role)) {
+    throw new Error("Only a Lead Business Analyst can purge an interaction.");
+  }
+
+  await purgeInteraction(supabase, interactionId, projectId, auth.user.id);
+
+  revalidatePath(`/projects/${projectId}/interactions/${interactionId}`);
 }
 
 export async function mapSpeaker(

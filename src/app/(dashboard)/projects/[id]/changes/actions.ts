@@ -283,6 +283,15 @@ export async function disposeFinding(projectId: string, changeRequestId: string,
     });
   }
 
+  await logAuditEvent(supabase, {
+    projectId,
+    actorUserId: user.id,
+    eventType: "Updated",
+    targetObjectType: "ImpactFinding",
+    targetObjectId: findingId,
+    newValue: { ba_disposition: disposition },
+  });
+
   revalidatePath(`/projects/${projectId}/changes/${changeRequestId}`);
 }
 

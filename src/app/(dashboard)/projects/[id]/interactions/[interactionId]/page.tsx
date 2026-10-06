@@ -11,6 +11,7 @@ import {
   revertCandidate,
   triggerExtraction,
 } from "./confirm-actions";
+import { purgeInteractionNow } from "../actions";
 import {
   approveAndDistribute,
   disputeMinutes,
@@ -116,6 +117,7 @@ export default async function InteractionDetailPage({
   const updateMinutesForInteraction = updateMinutes.bind(null, projectId, interactionId);
   const approveForInteraction = approveAndDistribute.bind(null, projectId, interactionId);
   const disputeForInteraction = disputeMinutes.bind(null, projectId, interactionId);
+  const purgeForInteraction = purgeInteractionNow.bind(null, projectId, interactionId);
 
   const pendingCount = (candidates ?? []).filter((c) => c.status === "Pending").length;
   const contradicting = (candidates ?? []).filter((c) => c.status === "Pending" && c.contradicts_decision_id);
@@ -144,6 +146,25 @@ export default async function InteractionDetailPage({
         {interaction.source_type} · {interaction.processing_status} ·{" "}
         {utterances?.length ?? 0} utterances
       </p>
+
+      {interaction.is_purged ? (
+        <p className="mt-2 text-xs text-neutral-500">
+          Content purged (EPIC 17) — structural record retained for traceability.
+        </p>
+      ) : (
+        <div className="mt-2 flex items-center gap-2">
+          {interaction.purge_after && (
+            <p className="text-xs text-neutral-500">Scheduled purge: {interaction.purge_after}</p>
+          )}
+          {userIsLead && (
+            <form action={purgeForInteraction}>
+              <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-300">
+                Purge now
+              </button>
+            </form>
+          )}
+        </div>
+      )}
 
       {(interaction.processing_status === "Received" || interaction.processing_status === "Indexed") && (
         <form action={triggerForInteraction} className="mt-6">

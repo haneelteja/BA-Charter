@@ -76,7 +76,12 @@ export async function createUserStory(projectId: string, formData: FormData) {
   redirect(`/projects/${projectId}/stories/${story.user_story_id}`);
 }
 
-/** §3.6 stage 2. */
+/**
+ * §3.6 stage 2. §7 optimistic concurrency (EXECUTION_PLAN.md EPIC 16): the
+ * update is conditioned on the version_no the form was rendered with — a
+ * zero-row result means someone else saved a newer version in between,
+ * surfaced as a conflict rather than silently overwritten.
+ */
 export async function updateStoryDetail(projectId: string, storyId: string, formData: FormData) {
   const prerequisites = String(formData.get("prerequisites") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -86,6 +91,7 @@ export async function updateStoryDetail(projectId: string, storyId: string, form
   const nfrSecurity = String(formData.get("nfr_security") ?? "").trim();
   const nfrAccessibility = String(formData.get("nfr_accessibility") ?? "").trim();
   const nfrAudit = String(formData.get("nfr_audit") ?? "").trim();
+  const expectedVersionNo = Number(formData.get("expected_version_no") ?? "");
 
   const supabase = await getSupabaseServerClient();
   const user = await requireUser(supabase);
@@ -100,7 +106,7 @@ export async function updateStoryDetail(projectId: string, storyId: string, form
     throw new Error(`Cannot edit a story in status ${prior.status}.`);
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("user_story")
     .update({
       prerequisites: prerequisites || null,
@@ -113,8 +119,15 @@ export async function updateStoryDetail(projectId: string, storyId: string, form
       nfr_audit: nfrAudit || null,
       version_no: prior.version_no + 1,
     })
-    .eq("user_story_id", storyId);
+    .eq("user_story_id", storyId)
+    .eq("version_no", expectedVersionNo)
+    .select("user_story_id");
   if (error) throw new Error(`Failed to update story: ${error.message}`);
+  if (!updated || updated.length === 0) {
+    throw new Error(
+      "This story was edited by someone else since you loaded it. Reload the page and reapply your changes."
+    );
+  }
 
   await enqueueEmbedding(supabase, projectId, "UserStory", storyId, user.id);
 
@@ -333,6 +346,15 @@ export async function reviewStory(projectId: string, storyId: string, formData: 
     .update({ status: outcome })
     .eq("user_story_id", storyId);
   if (updateError) throw new Error(`Failed to update story status: ${updateError.message}`);
+
+  await logAuditEvent(supabase, {
+    projectId,
+    actorUserId: user.id,
+    eventType: outcome === "Approved" ? "Approved" : "StatusChanged",
+    targetObjectType: "UserStory",
+    targetObjectId: storyId,
+    newValue: { outcome, comments },
+  });
 
   revalidatePath(`/projects/${projectId}/stories/${storyId}`);
 }

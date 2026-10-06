@@ -37,13 +37,16 @@ export function StoryCheckPanel({ projectId, storyId }: { projectId: string; sto
       </button>
 
       {error && (
-        <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div
+          role="alert"
+          className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+        >
           {error}
         </div>
       )}
 
       {result && (
-        <div className="mt-4">
+        <div className="mt-4" role="status" aria-live="polite">
           <p className="text-xs font-medium">
             {result.passed ? "No blocking findings." : "Blocking findings must be resolved before review."}
           </p>

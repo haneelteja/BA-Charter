@@ -20,6 +20,7 @@ export async function GET(request: Request) {
 
   await enqueueJob("sweep_action_item_overdue", {});
   await enqueueJob("sweep_clarification_ageing", {});
+  await enqueueJob("retention_purge", {});
 
   const processed = await processPendingJobs({ maxJobs: 50 });
 
