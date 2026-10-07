@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createEpic } from "./actions";
+import { BackLink, Badge, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<string, "indigo" | "amber" | "green" | "neutral"> = {
+  Draft: "neutral",
+  InReview: "amber",
+  Approved: "indigo",
+  Published: "green",
+};
 
 export default async function EpicsPage({
   params,
@@ -21,65 +29,56 @@ export default async function EpicsPage({
   const createForProject = createEpic.bind(null, projectId);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link href={`/projects/${projectId}`} className="text-sm text-neutral-500 hover:underline">
-        ← Back to project
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Epics</h1>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
+      <PageHeader title="Epics" />
 
       {error && (
-        <div className="mt-6 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {error.message}
         </div>
       )}
 
       <details className="mt-6">
-        <summary className="cursor-pointer text-sm font-medium">New epic</summary>
-        <form action={createForProject} className="mt-4 flex flex-col gap-3">
-          <input
-            name="title"
-            placeholder="Title"
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="business_objective"
-            placeholder="Business objective"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="in_scope"
-            placeholder="In scope"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="out_of_scope"
-            placeholder="Out of scope"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <button
-            type="submit"
-            className="w-fit rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
-            Create
-          </button>
-        </form>
+        <summary className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
+          + New epic
+        </summary>
+        <Card className="mt-4">
+          <form action={createForProject} className="flex flex-col gap-3">
+            <Field label="Title" htmlFor="epic-title">
+              <Input id="epic-title" name="title" placeholder="Title" required />
+            </Field>
+            <Field label="Business objective" htmlFor="epic-objective">
+              <Textarea id="epic-objective" name="business_objective" placeholder="Business objective" rows={2} />
+            </Field>
+            <Field label="In scope" htmlFor="epic-in-scope">
+              <Textarea id="epic-in-scope" name="in_scope" placeholder="In scope" rows={2} />
+            </Field>
+            <Field label="Out of scope" htmlFor="epic-out-scope">
+              <Textarea id="epic-out-scope" name="out_of_scope" placeholder="Out of scope" rows={2} />
+            </Field>
+            <Button type="submit" variant="primary" className="w-fit">
+              Create
+            </Button>
+          </form>
+        </Card>
       </details>
 
-      <ul className="mt-6 divide-y divide-neutral-200 dark:divide-neutral-800">
+      <ul className="mt-6 flex flex-col gap-3">
         {epics?.map((e) => (
-          <li key={e.epic_id} className="py-3">
-            <Link href={`/projects/${projectId}/epics/${e.epic_id}`} className="font-medium hover:underline">
-              {e.title}
+          <li key={e.epic_id}>
+            <Link href={`/projects/${projectId}/epics/${e.epic_id}`}>
+              <Card className="transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium">{e.title}</p>
+                  <Badge tone={STATUS_TONE[e.status] ?? "neutral"}>{e.status}</Badge>
+                </div>
+              </Card>
             </Link>
-            <p className="text-xs text-neutral-500">{e.status}</p>
           </li>
         ))}
       </ul>
-      {!error && (epics ?? []).length === 0 && <p className="mt-6 text-sm text-neutral-500">No epics yet.</p>}
+      {!error && (epics ?? []).length === 0 && <Card className="mt-6 text-sm text-muted">No epics yet.</Card>}
     </main>
   );
 }

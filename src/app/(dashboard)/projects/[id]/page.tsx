@@ -3,8 +3,28 @@ import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole, isLead } from "@/lib/projects/role";
 import { setEmbeddingConfig } from "./settings-actions";
+import { Badge, Button, Card, Field, Input, Select } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<string, "green" | "indigo" | "amber" | "neutral"> = {
+  Active: "green",
+  Setup: "indigo",
+  OnHold: "amber",
+  Closed: "neutral",
+};
+
+const SECTIONS = [
+  { href: "charter", label: "Charter", hint: "Knowledge model" },
+  { href: "interactions", label: "Interactions", hint: "Capture & extraction" },
+  { href: "action-items", label: "Action items", hint: "Follow-ups" },
+  { href: "clarifications", label: "Clarifications", hint: "Open questions" },
+  { href: "epics", label: "Epics", hint: "Delivery scope" },
+  { href: "stories", label: "Stories", hint: "User stories" },
+  { href: "changes", label: "Change requests", hint: "Impact analysis" },
+  { href: "guardrails", label: "Guardrails", hint: "Quality rules" },
+  { href: "search", label: "Search", hint: "Semantic retrieval" },
+];
 
 export default async function ProjectPage({
   params,
@@ -51,124 +71,82 @@ export default async function ProjectPage({
   const setEmbeddingConfigForProject = setEmbeddingConfig.bind(null, id);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">{project.project_name}</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        {project.client_name ?? "No client set"} · {project.status}
-      </p>
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight">{project.project_name}</h1>
+        <Badge tone={STATUS_TONE[project.status] ?? "neutral"}>{project.status}</Badge>
+      </div>
+      <p className="mt-1 text-sm text-muted">{project.client_name ?? "No client set"}</p>
       {project.description && <p className="mt-4 text-sm">{project.description}</p>}
 
-      <div className="mt-6 flex gap-3">
-        <Link
-          href={`/projects/${id}/charter`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Charter
-        </Link>
-        <Link
-          href={`/projects/${id}/interactions`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Interactions
-        </Link>
-        <Link
-          href={`/projects/${id}/action-items`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Action items
-        </Link>
-        <Link
-          href={`/projects/${id}/clarifications`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Clarifications
-        </Link>
-        <Link
-          href={`/projects/${id}/search`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Search
-        </Link>
-        <Link
-          href={`/projects/${id}/guardrails`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Guardrails
-        </Link>
-        <Link
-          href={`/projects/${id}/epics`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Epics
-        </Link>
-        <Link
-          href={`/projects/${id}/stories`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Stories
-        </Link>
-        <Link
-          href={`/projects/${id}/changes`}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Change requests
-        </Link>
-      </div>
-
-      <h2 className="mt-8 text-sm font-medium">Members</h2>
-      <ul className="mt-3 divide-y divide-neutral-200 dark:divide-neutral-800">
-        {members.map((m, i) => (
-          <li key={i} className="py-2 text-sm">
-            {m.user?.full_name ?? m.user?.email ?? "Unknown user"} — {m.role_name}
-          </li>
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {SECTIONS.map((s) => (
+          <Link key={s.href} href={`/projects/${id}/${s.href}`}>
+            <Card className="h-full transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800">
+              <p className="font-medium">{s.label}</p>
+              <p className="mt-0.5 text-xs text-muted">{s.hint}</p>
+            </Card>
+          </Link>
         ))}
-      </ul>
-
-      <h2 className="mt-8 text-sm font-medium">Embedding model</h2>
-      {project.embedding_provider && project.embedding_model ? (
-        <p className="mt-2 text-sm text-neutral-500">
-          {project.embedding_provider} / {project.embedding_model} — search and retrieval are active.
-        </p>
-      ) : (
-        <p className="mt-2 text-sm text-neutral-500">
-          Not configured yet — content won&apos;t be searchable until a Lead BA sets a model.
-        </p>
-      )}
-      {userIsLead && (
-        <form action={setEmbeddingConfigForProject} className="mt-3 flex flex-wrap items-end gap-2">
-          <div>
-            <label className="block text-xs text-neutral-500">Provider</label>
-            <select
-              name="embedding_provider"
-              defaultValue={project.embedding_provider ?? "openrouter"}
-              className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-            >
-              <option value="openrouter">OpenRouter</option>
-              <option value="openai">OpenAI</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-neutral-500">Model</label>
-            <input
-              name="embedding_model"
-              defaultValue={project.embedding_model ?? ""}
-              placeholder="e.g. openai/text-embedding-3-small"
-              className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
-            Save
-          </button>
-        </form>
-      )}
-
-      <div className="mt-10 rounded-md border border-neutral-200 p-4 text-sm text-neutral-500 dark:border-neutral-800">
-        Agile Studio publish uses a stub reference until a real Pega Infinity
-        instance is connected (EPIC 14).
       </div>
+
+      <div className="mt-10 grid gap-6 sm:grid-cols-2">
+        <section>
+          <h2 className="text-sm font-semibold">Members</h2>
+          <Card className="mt-3 divide-y divide-surface-border p-0">
+            {members.map((m, i) => (
+              <div key={i} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                <span>{m.user?.full_name ?? m.user?.email ?? "Unknown user"}</span>
+                <span className="text-xs text-muted">{m.role_name}</span>
+              </div>
+            ))}
+          </Card>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">Embedding model</h2>
+          <Card className="mt-3">
+            {project.embedding_provider && project.embedding_model ? (
+              <p className="text-sm text-muted">
+                {project.embedding_provider} / {project.embedding_model} — search and retrieval are active.
+              </p>
+            ) : (
+              <p className="text-sm text-muted">
+                Not configured yet — content won&apos;t be searchable until a Lead BA sets a model.
+              </p>
+            )}
+            {userIsLead && (
+              <form action={setEmbeddingConfigForProject} className="mt-3 flex flex-col gap-2">
+                <Field label="Provider" htmlFor="embedding_provider">
+                  <Select
+                    id="embedding_provider"
+                    name="embedding_provider"
+                    defaultValue={project.embedding_provider ?? "openrouter"}
+                  >
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="openai">OpenAI</option>
+                  </Select>
+                </Field>
+                <Field label="Model" htmlFor="embedding_model">
+                  <Input
+                    id="embedding_model"
+                    name="embedding_model"
+                    defaultValue={project.embedding_model ?? ""}
+                    placeholder="e.g. openai/text-embedding-3-small"
+                  />
+                </Field>
+                <Button type="submit" size="sm" className="w-fit">
+                  Save
+                </Button>
+              </form>
+            )}
+          </Card>
+        </section>
+      </div>
+
+      <p className="mt-10 text-xs text-muted">
+        Agile Studio publish uses a stub reference until a real Pega Infinity instance is connected (EPIC 14).
+      </p>
     </main>
   );
 }

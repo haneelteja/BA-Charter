@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { runChangeImpactAnalysis } from "../actions";
+import { Button } from "@/components/ui";
 
 export function AnalysisPanel({ projectId, changeRequestId }: { projectId: string; changeRequestId: string }) {
   const [isPending, startTransition] = useTransition();
@@ -22,25 +23,21 @@ export function AnalysisPanel({ projectId, changeRequestId }: { projectId: strin
 
   return (
     <div>
-      <button
-        onClick={handleRun}
-        disabled={isPending}
-        className="rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
-      >
+      <Button onClick={handleRun} disabled={isPending} size="sm">
         {isPending ? "Analysing…" : "Run impact analysis"}
-      </button>
+      </Button>
 
       {error && (
         <div
           role="alert"
-          className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+          className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
         >
           {error}
         </div>
       )}
 
       {summary && (
-        <p className="mt-3 text-xs text-neutral-500" role="status" aria-live="polite">
+        <p className="mt-3 text-xs text-muted" role="status" aria-live="polite">
           {summary}
         </p>
       )}

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole, isLead } from "@/lib/projects/role";
@@ -10,8 +9,16 @@ import {
   unlinkEpic,
   updateEpic,
 } from "../actions";
+import { BackLink, Badge, Button, Card, PageHeader, Select, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<string, "indigo" | "amber" | "green" | "neutral"> = {
+  Draft: "neutral",
+  InReview: "amber",
+  Approved: "indigo",
+  Published: "green",
+};
 
 export default async function EpicDetailPage({
   params,
@@ -76,115 +83,84 @@ export default async function EpicDetailPage({
   const publishForEpic = publishEpic.bind(null, projectId, epicId);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link href={`/projects/${projectId}/epics`} className="text-sm text-neutral-500 hover:underline">
-        ← All epics
-      </Link>
-      <div className="mt-4 flex items-center gap-2">
-        <h1 className="text-2xl font-semibold">{epic.title}</h1>
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs dark:bg-neutral-800">
-          {epic.status}
-        </span>
-      </div>
-      {epic.agile_studio_ref && (
-        <p className="mt-1 text-xs text-neutral-500">Agile Studio ref: {epic.agile_studio_ref}</p>
-      )}
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href={`/projects/${projectId}/epics`}>All epics</BackLink>
+      <PageHeader
+        title={epic.title}
+        badge={<Badge tone={STATUS_TONE[epic.status] ?? "neutral"}>{epic.status}</Badge>}
+        subtitle={epic.agile_studio_ref && `Agile Studio ref: ${epic.agile_studio_ref}`}
+      />
 
       {epic.status === "Draft" && (
-        <form action={updateForEpic} className="mt-6 flex flex-col gap-2">
-          <input
-            name="title"
-            defaultValue={epic.title}
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="business_objective"
-            defaultValue={epic.business_objective ?? ""}
-            placeholder="Business objective"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="in_scope"
-            defaultValue={epic.in_scope ?? ""}
-            placeholder="In scope"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="out_of_scope"
-            defaultValue={epic.out_of_scope ?? ""}
-            placeholder="Out of scope"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <button
-            type="submit"
-            className="w-fit rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
-            Save
-          </button>
-        </form>
+        <Card className="mt-6">
+          <form action={updateForEpic} className="flex flex-col gap-2">
+            <input
+              name="title"
+              defaultValue={epic.title}
+              required
+              className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            />
+            <Textarea name="business_objective" defaultValue={epic.business_objective ?? ""} placeholder="Business objective" rows={2} />
+            <Textarea name="in_scope" defaultValue={epic.in_scope ?? ""} placeholder="In scope" rows={2} />
+            <Textarea name="out_of_scope" defaultValue={epic.out_of_scope ?? ""} placeholder="Out of scope" rows={2} />
+            <Button type="submit" size="sm" className="w-fit">
+              Save
+            </Button>
+          </form>
+        </Card>
       )}
       {epic.status !== "Draft" && (
         <div className="mt-6 text-sm">
           {epic.business_objective && <p>{epic.business_objective}</p>}
-          {epic.in_scope && <p className="mt-1 text-neutral-500">In scope: {epic.in_scope}</p>}
-          {epic.out_of_scope && <p className="mt-1 text-neutral-500">Out of scope: {epic.out_of_scope}</p>}
+          {epic.in_scope && <p className="mt-1 text-muted">In scope: {epic.in_scope}</p>}
+          {epic.out_of_scope && <p className="mt-1 text-muted">Out of scope: {epic.out_of_scope}</p>}
         </div>
       )}
 
-      <h2 className="mt-8 text-sm font-medium">Linked decisions &amp; charter entries</h2>
-      <ul className="mt-2 flex flex-col gap-1">
+      <h2 className="mt-8 text-sm font-semibold">Linked decisions &amp; charter entries</h2>
+      <Card className="mt-3 divide-y divide-surface-border p-0">
         {linkedDecisions?.map((d) => {
           const link = links?.find((l) => l.to_object_id === d.decision_id);
           return (
-            <li key={d.decision_id} className="flex items-center justify-between text-sm">
+            <div key={d.decision_id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
               <span>Decision: {d.statement}</span>
               {epic.status === "Draft" && link && (
                 <form action={unlinkForEpic}>
                   <input type="hidden" name="trace_link_id" value={link.trace_link_id} />
-                  <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-300">
+                  <button type="submit" className="shrink-0 text-xs text-red-600 hover:underline dark:text-red-400">
                     Unlink
                   </button>
                 </form>
               )}
-            </li>
+            </div>
           );
         })}
         {linkedNodes?.map((n) => {
           const link = links?.find((l) => l.to_object_id === n.knowledge_node_id);
           return (
-            <li key={n.knowledge_node_id} className="flex items-center justify-between text-sm">
+            <div key={n.knowledge_node_id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
               <span>Charter: {n.title}</span>
               {epic.status === "Draft" && link && (
                 <form action={unlinkForEpic}>
                   <input type="hidden" name="trace_link_id" value={link.trace_link_id} />
-                  <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-300">
+                  <button type="submit" className="shrink-0 text-xs text-red-600 hover:underline dark:text-red-400">
                     Unlink
                   </button>
                 </form>
               )}
-            </li>
+            </div>
           );
         })}
-        {(links ?? []).length === 0 && <p className="text-sm text-neutral-500">No links yet.</p>}
-      </ul>
+        {(links ?? []).length === 0 && <p className="px-4 py-2.5 text-sm text-muted">No links yet.</p>}
+      </Card>
 
       {epic.status === "Draft" && (
         <form action={linkForEpic} className="mt-3 flex items-center gap-2">
-          <select
-            name="target_type"
-            className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-          >
+          <Select name="target_type" className="w-40">
             <option value="Decision">Decision</option>
             <option value="KnowledgeNode">Charter entry</option>
-          </select>
-          <select
-            name="target_id"
-            className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-          >
+          </Select>
+          <Select name="target_id" className="flex-1">
             <optgroup label="Confirmed decisions">
               {candidateDecisions?.map((d) => (
                 <option key={d.decision_id} value={d.decision_id}>
@@ -199,74 +175,52 @@ export default async function EpicDetailPage({
                 </option>
               ))}
             </optgroup>
-          </select>
-          <button
-            type="submit"
-            className="rounded-full border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
+          </Select>
+          <Button type="submit" size="sm">
             Link
-          </button>
+          </Button>
         </form>
       )}
 
       {epic.status === "Draft" && (
         <form action={submitForEpic} className="mt-6">
-          <button
-            type="submit"
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
+          <Button type="submit" variant="primary">
             Submit for review
-          </button>
+          </Button>
         </form>
       )}
 
       {epic.status === "InReview" && userIsLead && (
-        <form action={reviewForEpic} className="mt-6 flex flex-col gap-2">
-          <textarea
-            name="comments"
-            placeholder="Review comments"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              name="outcome"
-              value="Approved"
-              className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-            >
-              Approve
-            </button>
-            <button
-              type="submit"
-              name="outcome"
-              value="ReturnedForRework"
-              className="rounded-full border border-red-300 px-4 py-2 text-xs text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
-            >
-              Return for rework
-            </button>
-          </div>
-        </form>
+        <Card className="mt-6">
+          <form action={reviewForEpic} className="flex flex-col gap-2">
+            <Textarea name="comments" placeholder="Review comments" rows={2} />
+            <div className="flex gap-2">
+              <Button type="submit" name="outcome" value="Approved" variant="primary" size="sm">
+                Approve
+              </Button>
+              <Button type="submit" name="outcome" value="ReturnedForRework" variant="danger" size="sm">
+                Return for rework
+              </Button>
+            </div>
+          </form>
+        </Card>
       )}
       {epic.status === "InReview" && !userIsLead && (
-        <p className="mt-6 text-sm text-neutral-500">Awaiting Lead BA review.</p>
+        <p className="mt-6 text-sm text-muted">Awaiting Lead BA review.</p>
       )}
 
       {epic.status === "Approved" && (
         <form action={publishForEpic} className="mt-6">
-          <button
-            type="submit"
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
+          <Button type="submit" variant="primary">
             Publish to Agile Studio
-          </button>
+          </Button>
         </form>
       )}
 
       {reviews && reviews.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-sm font-medium">Review history</h2>
-          <ul className="mt-2 flex flex-col gap-1 text-xs text-neutral-500">
+          <h2 className="text-sm font-semibold">Review history</h2>
+          <ul className="mt-2 flex flex-col gap-1 text-xs text-muted">
             {reviews.map((r) => (
               <li key={r.review_id}>
                 [{r.outcome}] {r.comments}

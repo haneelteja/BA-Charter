@@ -37,7 +37,7 @@ export function SpeakerMapSelect({
           mapSpeaker(projectId, interactionId, formData);
         });
       }}
-      className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+      className="rounded-lg border border-surface-border bg-surface px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
     >
       <option value="" disabled>
         Map to…

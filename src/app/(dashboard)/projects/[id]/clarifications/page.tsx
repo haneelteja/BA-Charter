@@ -1,11 +1,19 @@
-import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { isOlderThanDays } from "@/lib/dates";
 import { answerClarification, confirmAnswer, markAsked, markPrepared, withdrawClarification } from "./actions";
+import { BackLink, Badge, Button, Card, Input, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 const STATUS_ORDER = ["Raised", "Prepared", "Asked", "Answered", "Confirmed", "Withdrawn"];
+const STATUS_TONE: Record<string, "indigo" | "amber" | "green" | "neutral"> = {
+  Raised: "indigo",
+  Prepared: "indigo",
+  Asked: "amber",
+  Answered: "amber",
+  Confirmed: "green",
+  Withdrawn: "neutral",
+};
 
 export default async function ClarificationsPage({
   params,
@@ -41,15 +49,12 @@ export default async function ClarificationsPage({
   const withdrawForProject = withdrawClarification.bind(null, projectId);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link href={`/projects/${projectId}`} className="text-sm text-neutral-500 hover:underline">
-        ← Back to project
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Clarifications</h1>
-      <p className="mt-1 text-sm text-neutral-500">Ageing threshold: {ageingDays} days unanswered.</p>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
+      <PageHeader title="Clarifications" subtitle={`Ageing threshold: ${ageingDays} days unanswered.`} />
 
       {error && (
-        <div className="mt-6 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {error.message}
         </div>
       )}
@@ -59,114 +64,82 @@ export default async function ClarificationsPage({
         if (group.length === 0) return null;
 
         return (
-          <section key={status} className="mt-6">
-            <h2 className="text-sm font-medium">
+          <section key={status} className="mt-8">
+            <h2 className="text-sm font-semibold">
               {status} ({group.length})
             </h2>
-            <ul className="mt-2 flex flex-col gap-3">
+            <ul className="mt-3 flex flex-col gap-3">
               {group.map((c) => {
                 const isAgeing =
                   ["Raised", "Prepared", "Asked"].includes(c.status) &&
                   isOlderThanDays(c.raised_at, ageingDays);
 
                 return (
-                  <li
-                    key={c.clarification_id}
-                    className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium">{c.question}</p>
-                      {isAgeing && (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                          Ageing
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-neutral-500">
-                      Chasing: {chaserName(c.chasing_user_id)} · Audience: {c.audience_type}
-                    </p>
-                    {c.answer_text && (
-                      <p className="mt-1 text-xs text-neutral-500">
-                        Answer ({c.answered_by}): {c.answer_text}
+                  <li key={c.clarification_id}>
+                    <Card>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium">{c.question}</p>
+                        <div className="flex shrink-0 gap-1.5">
+                          <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>
+                          {isAgeing && <Badge tone="amber">Ageing</Badge>}
+                        </div>
+                      </div>
+                      <p className="mt-1 text-xs text-muted">
+                        Chasing: {chaserName(c.chasing_user_id)} · Audience: {c.audience_type}
                       </p>
-                    )}
+                      {c.answer_text && (
+                        <p className="mt-1 text-xs text-muted">
+                          Answer ({c.answered_by}): {c.answer_text}
+                        </p>
+                      )}
 
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {c.status === "Raised" && (
-                        <form action={prepareForProject}>
-                          <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                          <button
-                            type="submit"
-                            className="rounded-full border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                          >
-                            Mark prepared
-                          </button>
-                        </form>
-                      )}
-                      {(c.status === "Raised" || c.status === "Prepared") && (
-                        <form action={askForProject} className="flex items-center gap-1">
-                          <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                          <input
-                            name="asked_channel"
-                            placeholder="Channel"
-                            className="w-20 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                          />
-                          <input
-                            name="asked_on"
-                            type="date"
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                          />
-                          <button
-                            type="submit"
-                            className="rounded-full border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                          >
-                            Mark asked
-                          </button>
-                        </form>
-                      )}
-                      {c.status === "Asked" && (
-                        <form action={answerForProject} className="flex flex-col gap-1">
-                          <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                          <input
-                            name="answer_text"
-                            placeholder="Answer"
-                            required
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                          />
-                          <input
-                            name="answered_by"
-                            placeholder="Answered by"
-                            required
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                          />
-                          <button
-                            type="submit"
-                            className="w-fit rounded-full border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                          >
-                            Record answer
-                          </button>
-                        </form>
-                      )}
-                      {c.status === "Answered" && (
-                        <form action={confirmForProject}>
-                          <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                          <button
-                            type="submit"
-                            className="rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-                          >
-                            Confirm answer
-                          </button>
-                        </form>
-                      )}
-                      {!["Confirmed", "Withdrawn"].includes(c.status) && (
-                        <form action={withdrawForProject}>
-                          <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                          <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-300">
-                            Withdraw
-                          </button>
-                        </form>
-                      )}
-                    </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {c.status === "Raised" && (
+                          <form action={prepareForProject}>
+                            <input type="hidden" name="clarification_id" value={c.clarification_id} />
+                            <Button type="submit" size="sm">
+                              Mark prepared
+                            </Button>
+                          </form>
+                        )}
+                        {(c.status === "Raised" || c.status === "Prepared") && (
+                          <form action={askForProject} className="flex items-center gap-1.5">
+                            <input type="hidden" name="clarification_id" value={c.clarification_id} />
+                            <Input name="asked_channel" placeholder="Channel" className="h-8 w-20 py-1 text-xs" />
+                            <Input name="asked_on" type="date" className="h-8 py-1 text-xs" />
+                            <Button type="submit" size="sm">
+                              Mark asked
+                            </Button>
+                          </form>
+                        )}
+                        {c.status === "Asked" && (
+                          <form action={answerForProject} className="flex flex-col gap-1.5">
+                            <input type="hidden" name="clarification_id" value={c.clarification_id} />
+                            <Input name="answer_text" placeholder="Answer" required className="h-8 py-1 text-xs" />
+                            <Input name="answered_by" placeholder="Answered by" required className="h-8 py-1 text-xs" />
+                            <Button type="submit" size="sm" className="w-fit">
+                              Record answer
+                            </Button>
+                          </form>
+                        )}
+                        {c.status === "Answered" && (
+                          <form action={confirmForProject}>
+                            <input type="hidden" name="clarification_id" value={c.clarification_id} />
+                            <Button type="submit" variant="primary" size="sm">
+                              Confirm answer
+                            </Button>
+                          </form>
+                        )}
+                        {!["Confirmed", "Withdrawn"].includes(c.status) && (
+                          <form action={withdrawForProject}>
+                            <input type="hidden" name="clarification_id" value={c.clarification_id} />
+                            <button type="submit" className="text-xs text-red-600 hover:underline dark:text-red-400">
+                              Withdraw
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </Card>
                   </li>
                 );
               })}
@@ -176,7 +149,7 @@ export default async function ClarificationsPage({
       })}
 
       {!error && (clarifications ?? []).length === 0 && (
-        <p className="mt-6 text-sm text-neutral-500">No clarifications yet.</p>
+        <Card className="mt-6 text-sm text-muted">No clarifications yet.</Card>
       )}
     </main>
   );

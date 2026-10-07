@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { BackLink, Button, Card, PageHeader, Select } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -56,18 +57,12 @@ export default async function CallPrepPage({
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link href="/workspace" className="text-sm text-neutral-500 hover:underline">
-        ← Workspace
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Call preparation</h1>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href="/workspace">Workspace</BackLink>
+      <PageHeader title="Call preparation" />
 
       <form method="GET" className="mt-6 flex items-center gap-2">
-        <select
-          name="stakeholder_id"
-          defaultValue={stakeholderId ?? ""}
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        >
+        <Select name="stakeholder_id" defaultValue={stakeholderId ?? ""} className="flex-1">
           <option value="">Select a stakeholder…</option>
           {(stakeholders ?? []).map((s) => (
             <option key={s.stakeholder_id} value={s.stakeholder_id}>
@@ -76,34 +71,33 @@ export default async function CallPrepPage({
               {(s.project as unknown as { project_name: string } | null)?.project_name}
             </option>
           ))}
-        </select>
-        <button
-          type="submit"
-          className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-        >
+        </Select>
+        <Button type="submit" variant="primary">
           Prepare
-        </button>
+        </Button>
       </form>
 
       {selected && (
         <div className="mt-8">
-          <h2 className="text-lg font-medium">
+          <h2 className="text-lg font-semibold">
             Agenda for {selected.full_name}
             {selected.organisation && ` (${selected.organisation})`}
           </h2>
 
-          {groups.length === 0 && <p className="mt-2 text-sm text-neutral-500">No open clarifications for this stakeholder.</p>}
+          {groups.length === 0 && <p className="mt-2 text-sm text-muted">No open clarifications for this stakeholder.</p>}
 
           {groups.map((g) => (
             <section key={g.topic} className="mt-6">
-              <h3 className="text-sm font-medium">{g.topic}</h3>
+              <h3 className="text-sm font-semibold">{g.topic}</h3>
               <ul className="mt-2 flex flex-col gap-2">
                 {g.items.map((item) => (
-                  <li key={item.clarification_id} className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800">
-                    <Link href={`/projects/${item.project_id}/clarifications`} className="font-medium hover:underline">
-                      {item.question}
+                  <li key={item.clarification_id}>
+                    <Link href={`/projects/${item.project_id}/clarifications`}>
+                      <Card className="transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800">
+                        <p className="font-medium">{item.question}</p>
+                        {item.why_it_matters && <p className="mt-1 text-xs text-muted">{item.why_it_matters}</p>}
+                      </Card>
                     </Link>
-                    {item.why_it_matters && <p className="mt-1 text-xs text-neutral-500">{item.why_it_matters}</p>}
                   </li>
                 ))}
               </ul>

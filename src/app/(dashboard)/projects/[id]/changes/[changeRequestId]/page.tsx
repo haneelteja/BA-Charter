@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -15,14 +14,26 @@ import {
 } from "../actions";
 import { AnalysisPanel } from "./AnalysisPanel";
 import { BrainstormPanel } from "./BrainstormPanel";
+import { BackLink, Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-const FINDING_TYPE_STYLES: Record<string, string> = {
-  Affected: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
-  Undefined: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  Contradiction: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
-  LowCoverage: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+const STATUS_TONE: Record<string, "indigo" | "amber" | "green" | "neutral" | "red"> = {
+  Intake: "neutral",
+  Analysing: "indigo",
+  Brainstorm: "indigo",
+  Decision: "amber",
+  Accepted: "indigo",
+  Deferred: "neutral",
+  Rejected: "red",
+  Propagated: "green",
+};
+
+const FINDING_TONE: Record<string, "neutral" | "amber" | "red"> = {
+  Affected: "neutral",
+  Undefined: "amber",
+  Contradiction: "red",
+  LowCoverage: "amber",
 };
 
 export default async function ChangeRequestDetailPage({
@@ -89,56 +100,44 @@ export default async function ChangeRequestDetailPage({
   );
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link href={`/projects/${projectId}/changes`} className="text-sm text-neutral-500 hover:underline">
-        ← All change requests
-      </Link>
-      <div className="mt-4 flex items-center gap-2">
-        <h1 className="text-2xl font-semibold">{changeRequest.title}</h1>
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs dark:bg-neutral-800">
-          {changeRequest.status}
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-neutral-500">
-        {changeRequest.requested_by && `Requested by ${changeRequest.requested_by}`}
-        {changeRequest.urgency && ` · ${changeRequest.urgency} urgency`}
-      </p>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href={`/projects/${projectId}/changes`}>All change requests</BackLink>
+      <PageHeader
+        title={changeRequest.title}
+        badge={<Badge tone={STATUS_TONE[changeRequest.status] ?? "neutral"}>{changeRequest.status}</Badge>}
+        subtitle={
+          (changeRequest.requested_by || changeRequest.urgency) &&
+          `${changeRequest.requested_by ? `Requested by ${changeRequest.requested_by}` : ""}${
+            changeRequest.urgency ? ` · ${changeRequest.urgency} urgency` : ""
+          }`
+        }
+      />
 
       {/* Intake */}
       {changeRequest.status === "Intake" && (
-        <form action={updateForChange} className="mt-6 flex flex-col gap-2">
-          <h2 className="text-sm font-medium">Intake</h2>
-          <input
-            name="title"
-            defaultValue={changeRequest.title}
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="description"
-            defaultValue={changeRequest.description ?? ""}
-            placeholder="Description"
-            rows={4}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <select
-            name="urgency"
-            defaultValue={changeRequest.urgency ?? ""}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            <option value="">Urgency</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-            <option value="Critical">Critical</option>
-          </select>
-          <button
-            type="submit"
-            className="w-fit rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
-            Save
-          </button>
-        </form>
+        <Card className="mt-6">
+          <h2 className="text-sm font-semibold">Intake</h2>
+          <form action={updateForChange} className="mt-3 flex flex-col gap-3">
+            <Field label="Title" htmlFor="cr-title">
+              <Input id="cr-title" name="title" defaultValue={changeRequest.title} required />
+            </Field>
+            <Field label="Description" htmlFor="cr-description">
+              <Textarea id="cr-description" name="description" defaultValue={changeRequest.description ?? ""} placeholder="Description" rows={4} />
+            </Field>
+            <Field label="Urgency" htmlFor="cr-urgency">
+              <Select id="cr-urgency" name="urgency" defaultValue={changeRequest.urgency ?? ""}>
+                <option value="">Urgency</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </Select>
+            </Field>
+            <Button type="submit" size="sm" className="w-fit">
+              Save
+            </Button>
+          </form>
+        </Card>
       )}
       {changeRequest.status !== "Intake" && changeRequest.description && (
         <p className="mt-6 text-sm">{changeRequest.description}</p>
@@ -146,9 +145,9 @@ export default async function ChangeRequestDetailPage({
 
       {/* Analyse */}
       {(changeRequest.status === "Intake" || changeRequest.status === "Analysing") && (
-        <section className="mt-8 border-t border-neutral-200 pt-6 dark:border-neutral-800">
-          <h2 className="text-sm font-medium">Analyse</h2>
-          <div className="mt-2">
+        <section className="mt-8 border-t border-surface-border pt-6">
+          <h2 className="text-sm font-semibold">Analyse</h2>
+          <div className="mt-3">
             <AnalysisPanel projectId={projectId} changeRequestId={changeRequestId} />
           </div>
         </section>
@@ -156,47 +155,32 @@ export default async function ChangeRequestDetailPage({
 
       {(findings ?? []).length > 0 && (
         <section className="mt-6">
-          <h2 className="text-sm font-medium">Findings</h2>
-          <ul className="mt-2 flex flex-col gap-2">
+          <h2 className="text-sm font-semibold">Findings</h2>
+          <ul className="mt-3 flex flex-col gap-2">
             {findings!.map((f) => (
-              <li key={f.finding_id} className="rounded-md border border-neutral-200 p-3 text-xs dark:border-neutral-800">
-                <span className={`rounded-full px-2 py-0.5 ${FINDING_TYPE_STYLES[f.finding_type] ?? ""}`}>
-                  {f.finding_type}
-                </span>
-                {f.confidence_score !== null && (
-                  <span className="ml-2 text-neutral-500">{Math.round(f.confidence_score * 100)}%</span>
-                )}
-                {f.ba_disposition && <span className="ml-2 text-neutral-500">[{f.ba_disposition}]</span>}
-                <p className="mt-1">{f.detail}</p>
-                {!f.ba_disposition && changeRequest.status === "Analysing" && (
-                  <form action={disposeForChange} className="mt-2 flex gap-2">
-                    <input type="hidden" name="finding_id" value={f.finding_id} />
-                    <button
-                      type="submit"
-                      name="disposition"
-                      value="Accepted"
-                      className="rounded-full border border-neutral-300 px-2 py-1 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      type="submit"
-                      name="disposition"
-                      value="Dismissed"
-                      className="rounded-full border border-neutral-300 px-2 py-1 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                    >
-                      Dismiss
-                    </button>
-                    <button
-                      type="submit"
-                      name="disposition"
-                      value="RaisedAsClarification"
-                      className="rounded-full border border-neutral-300 px-2 py-1 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                    >
-                      Raise as clarification
-                    </button>
-                  </form>
-                )}
+              <li key={f.finding_id}>
+                <Card className="text-xs">
+                  <Badge tone={FINDING_TONE[f.finding_type] ?? "neutral"}>{f.finding_type}</Badge>
+                  {f.confidence_score !== null && (
+                    <span className="ml-2 text-muted">{Math.round(f.confidence_score * 100)}%</span>
+                  )}
+                  {f.ba_disposition && <span className="ml-2 text-muted">[{f.ba_disposition}]</span>}
+                  <p className="mt-1.5 text-sm text-foreground">{f.detail}</p>
+                  {!f.ba_disposition && changeRequest.status === "Analysing" && (
+                    <form action={disposeForChange} className="mt-2 flex gap-2">
+                      <input type="hidden" name="finding_id" value={f.finding_id} />
+                      <Button type="submit" name="disposition" value="Accepted" size="sm">
+                        Accept
+                      </Button>
+                      <Button type="submit" name="disposition" value="Dismissed" size="sm">
+                        Dismiss
+                      </Button>
+                      <Button type="submit" name="disposition" value="RaisedAsClarification" size="sm">
+                        Raise as clarification
+                      </Button>
+                    </form>
+                  )}
+                </Card>
               </li>
             ))}
           </ul>
@@ -205,20 +189,17 @@ export default async function ChangeRequestDetailPage({
 
       {changeRequest.status === "Analysing" && (
         <form action={moveToBrainstormForChange} className="mt-4">
-          <button
-            type="submit"
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
+          <Button type="submit" variant="primary">
             Proceed to brainstorm
-          </button>
+          </Button>
         </form>
       )}
 
       {/* Brainstorm */}
       {changeRequest.status === "Brainstorm" && (
-        <section className="mt-8 border-t border-neutral-200 pt-6 dark:border-neutral-800">
-          <h2 className="text-sm font-medium">Brainstorm</h2>
-          <div className="mt-2">
+        <section className="mt-8 border-t border-surface-border pt-6">
+          <h2 className="text-sm font-semibold">Brainstorm</h2>
+          <div className="mt-3">
             <BrainstormPanel
               projectId={projectId}
               changeRequestId={changeRequestId}
@@ -230,8 +211,8 @@ export default async function ChangeRequestDetailPage({
 
       {(clarifications ?? []).length > 0 && (
         <section className="mt-6">
-          <h2 className="text-sm font-medium">Raised clarifications</h2>
-          <ul className="mt-2 flex flex-col gap-1 text-xs text-neutral-500">
+          <h2 className="text-sm font-semibold">Raised clarifications</h2>
+          <ul className="mt-2 flex flex-col gap-1 text-xs text-muted">
             {clarifications!.map((c) => (
               <li key={c.clarification_id}>
                 [{c.status}] {c.question} {c.is_blocking && "(blocking)"}
@@ -243,162 +224,118 @@ export default async function ChangeRequestDetailPage({
 
       {changeRequest.status === "Brainstorm" && (
         <form action={moveToDecideForChange} className="mt-4">
-          <button
-            type="submit"
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
+          <Button type="submit" variant="primary">
             Proceed to decide
-          </button>
+          </Button>
         </form>
       )}
 
       {/* Decide */}
       {changeRequest.status === "Decision" && (
-        <section className="mt-8 border-t border-neutral-200 pt-6 dark:border-neutral-800">
-          <h2 className="text-sm font-medium">Decide</h2>
+        <section className="mt-8 border-t border-surface-border pt-6">
+          <h2 className="text-sm font-semibold">Decide</h2>
           {unresolvedBlockingClarifications.length > 0 && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
               {unresolvedBlockingClarifications.length} blocking clarification(s) still unanswered — deferring or
               rejecting will be blocked until resolved (§8 rule 9). Accepting is still allowed.
             </p>
           )}
-          <form action={decideForChange} className="mt-2 flex flex-col gap-2">
-            <textarea
-              name="rationale"
-              placeholder="Decision rationale"
-              required
-              rows={2}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-            />
+          <form action={decideForChange} className="mt-3 flex flex-col gap-2">
+            <Textarea name="rationale" placeholder="Decision rationale" required rows={2} />
             <div className="flex gap-2">
-              <button
-                type="submit"
-                name="outcome"
-                value="Accepted"
-                className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-              >
+              <Button type="submit" name="outcome" value="Accepted" variant="primary" size="sm">
                 Accept
-              </button>
-              <button
-                type="submit"
-                name="outcome"
-                value="Deferred"
-                className="rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-              >
+              </Button>
+              <Button type="submit" name="outcome" value="Deferred" size="sm">
                 Defer to release
-              </button>
-              <button
-                type="submit"
-                name="outcome"
-                value="Rejected"
-                className="rounded-full border border-red-300 px-4 py-2 text-xs text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
-              >
+              </Button>
+              <Button type="submit" name="outcome" value="Rejected" variant="danger" size="sm">
                 Reject
-              </button>
+              </Button>
             </div>
           </form>
         </section>
       )}
 
       {changeRequest.decision_rationale && (
-        <p className="mt-4 text-xs text-neutral-500">Decision rationale: {changeRequest.decision_rationale}</p>
+        <p className="mt-4 text-xs text-muted">Decision rationale: {changeRequest.decision_rationale}</p>
       )}
 
       {/* Propagate */}
       {changeRequest.status === "Accepted" && (
-        <section className="mt-8 border-t border-neutral-200 pt-6 dark:border-neutral-800">
-          <h2 className="text-sm font-medium">Propagate</h2>
-          <form action={generateEditsForChange} className="mt-2">
-            <button
-              type="submit"
-              className="rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-            >
+        <section className="mt-8 border-t border-surface-border pt-6">
+          <h2 className="text-sm font-semibold">Propagate</h2>
+          <form action={generateEditsForChange} className="mt-3">
+            <Button type="submit" size="sm">
               Generate proposed edits
-            </button>
+            </Button>
           </form>
 
           {(proposedEdits ?? []).length > 0 && (
             <ul className="mt-4 flex flex-col gap-2">
               {proposedEdits!.map((edit) => (
-                <li
-                  key={edit.proposed_edit_id}
-                  className="rounded-md border border-neutral-200 p-3 text-xs dark:border-neutral-800"
-                >
-                  <p className="font-medium">
-                    {edit.target_object_type} · {edit.field_name}
-                    <span className="ml-2 text-neutral-500">[{edit.status}]</span>
-                  </p>
-                  <p className="mt-1 text-neutral-500">Current: {edit.current_value ?? "(empty)"}</p>
-                  <p className="mt-1">Proposed: {edit.proposed_value}</p>
-                  {edit.rationale && <p className="mt-1 text-neutral-500">{edit.rationale}</p>}
-                  {edit.status === "Pending" && (
-                    <form action={reviewEditForChange} className="mt-2 flex gap-2">
-                      <input type="hidden" name="proposed_edit_id" value={edit.proposed_edit_id} />
-                      <button
-                        type="submit"
-                        name="outcome"
-                        value="Approved"
-                        className="rounded-full bg-foreground px-3 py-1 font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="submit"
-                        name="outcome"
-                        value="Rejected"
-                        className="rounded-full border border-red-300 px-3 py-1 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
-                      >
-                        Reject
-                      </button>
-                    </form>
-                  )}
+                <li key={edit.proposed_edit_id}>
+                  <Card className="text-xs">
+                    <p className="font-medium text-sm">
+                      {edit.target_object_type} · {edit.field_name}
+                      <Badge className="ml-2">{edit.status}</Badge>
+                    </p>
+                    <p className="mt-1 text-muted">Current: {edit.current_value ?? "(empty)"}</p>
+                    <p className="mt-1">Proposed: {edit.proposed_value}</p>
+                    {edit.rationale && <p className="mt-1 text-muted">{edit.rationale}</p>}
+                    {edit.status === "Pending" && (
+                      <form action={reviewEditForChange} className="mt-2 flex gap-2">
+                        <input type="hidden" name="proposed_edit_id" value={edit.proposed_edit_id} />
+                        <Button type="submit" name="outcome" value="Approved" variant="primary" size="sm">
+                          Approve
+                        </Button>
+                        <Button type="submit" name="outcome" value="Rejected" variant="danger" size="sm">
+                          Reject
+                        </Button>
+                      </form>
+                    )}
+                  </Card>
                 </li>
               ))}
             </ul>
           )}
 
-          <form action={notifyForChange} className="mt-4">
-            <button
-              type="submit"
-              className="rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-            >
+          <form action={notifyForChange} className="mt-4 flex items-center gap-2">
+            <Button type="submit" size="sm">
               {changeRequest.notified_at ? "Re-notify delivery team" : "Notify delivery team"}
-            </button>
+            </Button>
             {changeRequest.notified_at && (
-              <span className="ml-2 text-xs text-neutral-500">
+              <span className="text-xs text-muted">
                 Notified {new Date(changeRequest.notified_at).toLocaleString()}
               </span>
             )}
           </form>
 
           {unresolvedBlockingClarifications.length > 0 && (
-            <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-4 text-xs text-amber-700 dark:text-amber-400">
               {unresolvedBlockingClarifications.length} blocking clarification(s) still unanswered — closing will be
               blocked until resolved (§8 rule 9).
             </p>
           )}
           {pendingEditsCount > 0 && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
               {pendingEditsCount} proposed edit(s) still pending a decision.
             </p>
           )}
 
           <form action={completeForChange} className="mt-4">
-            <button
-              type="submit"
-              className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-            >
+            <Button type="submit" variant="primary">
               Close change request
-            </button>
+            </Button>
           </form>
         </section>
       )}
 
       {changeRequest.status === "Propagated" && (
-        <p className="mt-8 text-sm text-neutral-500">This change request has been propagated and closed.</p>
+        <p className="mt-8 text-sm text-muted">This change request has been propagated and closed.</p>
       )}
       {(changeRequest.status === "Deferred" || changeRequest.status === "Rejected") && (
-        <p className="mt-8 text-sm text-neutral-500">This change request is {changeRequest.status.toLowerCase()}.</p>
+        <p className="mt-8 text-sm text-muted">This change request is {changeRequest.status.toLowerCase()}.</p>
       )}
     </main>
   );

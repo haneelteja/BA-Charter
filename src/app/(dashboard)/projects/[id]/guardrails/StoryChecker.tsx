@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { runGuardrailCheck } from "./actions";
 import type { GuardrailFinding, StoryPayload } from "@/lib/ai/guardrails";
+import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 
-const SEVERITY_STYLES: Record<string, string> = {
-  Blocking: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
-  Warning: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  Info: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+const SEVERITY_TONE: Record<string, "red" | "amber" | "neutral"> = {
+  Blocking: "red",
+  Warning: "amber",
+  Info: "neutral",
 };
 
 export function StoryChecker({ projectId }: { projectId: string }) {
@@ -38,53 +39,34 @@ export function StoryChecker({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <form action={handleSubmit} className="flex flex-col gap-2">
-        <input
-          name="title"
-          placeholder="Story title"
-          required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          name="actor"
-          placeholder="Actor"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          name="goal"
-          placeholder="Goal"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          name="business_value"
-          placeholder="Business value"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <textarea
-          name="description"
-          placeholder="Description"
-          rows={3}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <textarea
-          name="acceptance_criteria"
-          placeholder="Acceptance criteria"
-          rows={3}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-fit rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
-        >
+      <form action={handleSubmit} className="flex flex-col gap-3">
+        <Field label="Story title" htmlFor="story-title">
+          <Input id="story-title" name="title" placeholder="Story title" required />
+        </Field>
+        <Field label="Actor" htmlFor="story-actor">
+          <Input id="story-actor" name="actor" placeholder="Actor" />
+        </Field>
+        <Field label="Goal" htmlFor="story-goal">
+          <Input id="story-goal" name="goal" placeholder="Goal" />
+        </Field>
+        <Field label="Business value" htmlFor="story-value">
+          <Input id="story-value" name="business_value" placeholder="Business value" />
+        </Field>
+        <Field label="Description" htmlFor="story-description">
+          <Textarea id="story-description" name="description" placeholder="Description" rows={3} />
+        </Field>
+        <Field label="Acceptance criteria" htmlFor="story-ac">
+          <Textarea id="story-ac" name="acceptance_criteria" placeholder="Acceptance criteria" rows={3} />
+        </Field>
+        <Button type="submit" variant="primary" disabled={isPending} className="w-fit">
           {isPending ? "Checking…" : "Run guardrail check"}
-        </button>
+        </Button>
       </form>
 
       {error && (
         <div
           role="alert"
-          className="mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+          className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
         >
           {error}
         </div>
@@ -97,20 +79,18 @@ export function StoryChecker({ projectId }: { projectId: string }) {
           </h3>
           <ul className="mt-2 flex flex-col gap-2">
             {findings.map((f, i) => (
-              <li key={i} className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800">
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${SEVERITY_STYLES[f.severity]}`}>
-                    {f.severity}
-                  </span>
-                  <span className="text-xs text-neutral-500">
-                    {f.ruleType} · {f.ruleName}
-                    {f.fieldName ? ` · ${f.fieldName}` : ""}
-                  </span>
-                </div>
-                <p className="mt-1">{f.message}</p>
-                {f.suggestedCorrection && (
-                  <p className="mt-1 text-xs text-neutral-500">Suggestion: {f.suggestedCorrection}</p>
-                )}
+              <li key={i}>
+                <Card className="text-sm">
+                  <div className="flex items-center gap-2">
+                    <Badge tone={SEVERITY_TONE[f.severity]}>{f.severity}</Badge>
+                    <span className="text-xs text-muted">
+                      {f.ruleType} · {f.ruleName}
+                      {f.fieldName ? ` · ${f.fieldName}` : ""}
+                    </span>
+                  </div>
+                  <p className="mt-1">{f.message}</p>
+                  {f.suggestedCorrection && <p className="mt-1 text-xs text-muted">Suggestion: {f.suggestedCorrection}</p>}
+                </Card>
               </li>
             ))}
           </ul>

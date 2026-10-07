@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createInteraction } from "./actions";
+import { BackLink, Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -23,80 +24,73 @@ export default async function InteractionsPage({
   const createForProject = createInteraction.bind(null, projectId);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link href={`/projects/${projectId}`} className="text-sm text-neutral-500 hover:underline">
-        ← Back to project
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Interactions</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Transcripts, emails, chats and notes captured for this project.
-      </p>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
+      <PageHeader title="Interactions" subtitle="Transcripts, emails, chats and notes captured for this project." />
 
       {error && (
-        <div className="mt-6 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {error.message}
         </div>
       )}
 
       <details className="mt-8">
-        <summary className="cursor-pointer text-sm font-medium">Capture new interaction</summary>
-        <form action={createForProject} className="mt-4 flex flex-col gap-3">
-          <select
-            name="source_type"
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            {SOURCE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <input
-            name="title"
-            placeholder="Title (optional)"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <input
-            name="occurred_at"
-            type="datetime-local"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="content"
-            placeholder={
-              "Paste the transcript, email or notes here.\nFor multi-speaker transcripts, use \"Speaker Name: what they said\" per line."
-            }
-            required
-            rows={10}
-            className="rounded-md border border-neutral-300 px-3 py-2 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <button
-            type="submit"
-            className="w-fit rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
-            Capture
-          </button>
-        </form>
+        <summary className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
+          + Capture new interaction
+        </summary>
+        <Card className="mt-4">
+          <form action={createForProject} className="flex flex-col gap-3">
+            <Field label="Source type" htmlFor="source_type">
+              <Select id="source_type" name="source_type" required>
+                {SOURCE_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Title" htmlFor="title">
+              <Input id="title" name="title" placeholder="Title (optional)" />
+            </Field>
+            <Field label="Occurred at" htmlFor="occurred_at">
+              <Input id="occurred_at" name="occurred_at" type="datetime-local" />
+            </Field>
+            <Field label="Content" htmlFor="content">
+              <Textarea
+                id="content"
+                name="content"
+                placeholder={
+                  'Paste the transcript, email or notes here.\nFor multi-speaker transcripts, use "Speaker Name: what they said" per line.'
+                }
+                required
+                rows={10}
+                className="font-mono text-xs"
+              />
+            </Field>
+            <Button type="submit" variant="primary" className="w-fit">
+              Capture
+            </Button>
+          </form>
+        </Card>
       </details>
 
-      <ul className="mt-10 divide-y divide-neutral-200 dark:divide-neutral-800">
+      <ul className="mt-10 flex flex-col gap-3">
         {interactions?.map((i) => (
-          <li key={i.interaction_id} className="py-3">
-            <Link
-              href={`/projects/${projectId}/interactions/${i.interaction_id}`}
-              className="font-medium hover:underline"
-            >
-              {i.title || `Untitled ${i.source_type}`}
+          <li key={i.interaction_id}>
+            <Link href={`/projects/${projectId}/interactions/${i.interaction_id}`}>
+              <Card className="transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium">{i.title || `Untitled ${i.source_type}`}</p>
+                  <Badge>{i.processing_status}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted">{i.source_type}</p>
+              </Card>
             </Link>
-            <p className="text-xs text-neutral-500">
-              {i.source_type} · {i.processing_status}
-            </p>
           </li>
         ))}
       </ul>
       {!error && (interactions ?? []).length === 0 && (
-        <p className="mt-6 text-sm text-neutral-500">No interactions captured yet.</p>
+        <Card className="mt-6 text-sm text-muted">No interactions captured yet.</Card>
       )}
     </main>
   );

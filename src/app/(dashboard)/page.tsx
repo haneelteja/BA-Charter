@@ -2,8 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createProject } from "./projects/actions";
+import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<string, "green" | "indigo" | "amber" | "neutral"> = {
+  Active: "green",
+  Setup: "indigo",
+  OnHold: "amber",
+  Closed: "neutral",
+};
 
 export default async function WorkspacePage() {
   const supabase = await getSupabaseServerClient();
@@ -34,74 +42,67 @@ export default async function WorkspacePage() {
   const error = membershipError ?? projectError;
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">Your projects</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Every project you&apos;re a member of. Full context opens within the
-        owning project; see the{" "}
-        <Link href="/workspace" className="underline">
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="text-2xl font-semibold tracking-tight">Your projects</h1>
+      <p className="mt-1 text-sm text-muted">
+        Every project you&apos;re a member of. Full context opens within the owning project; see the{" "}
+        <Link href="/workspace" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
           workspace
         </Link>{" "}
         for everything aggregated across all of them.
       </p>
 
       {error && (
-        <div className="mt-6 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {error.message}
         </div>
       )}
 
       {!error && (projects ?? []).length === 0 && (
-        <p className="mt-6 text-sm text-neutral-500">
-          No projects yet — create one below.
-        </p>
+        <Card className="mt-6 text-sm text-muted">No projects yet — create one below.</Card>
       )}
 
-      <ul className="mt-6 divide-y divide-neutral-200 dark:divide-neutral-800">
-        {(projects ?? []).map((project) => (
-          <li key={project.project_id} className="py-3">
-            <Link href={`/projects/${project.project_id}`} className="font-medium hover:underline">
-              {project.project_name}
-            </Link>
-            <p className="text-xs text-neutral-500">
-              {project.client_name ?? "No client set"} · {project.status}
-            </p>
-          </li>
-        ))}
-      </ul>
+      {(projects ?? []).length > 0 && (
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+          {(projects ?? []).map((project) => (
+            <li key={project.project_id}>
+              <Link href={`/projects/${project.project_id}`}>
+                <Card className="h-full transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium">{project.project_name}</p>
+                    <Badge tone={STATUS_TONE[project.status] ?? "neutral"}>{project.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">{project.client_name ?? "No client set"}</p>
+                </Card>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <details className="mt-10">
-        <summary className="cursor-pointer text-sm font-medium">New project</summary>
-        <form action={createProject} className="mt-4 flex flex-col gap-3">
-          <input
-            name="project_name"
-            placeholder="Project name"
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <input
-            name="client_name"
-            placeholder="Client name (optional)"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <textarea
-            name="description"
-            placeholder="Description (optional)"
-            rows={2}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <input
-            name="start_date"
-            type="date"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <button
-            type="submit"
-            className="mt-1 w-fit rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
-            Create project
-          </button>
-        </form>
+        <summary className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
+          + New project
+        </summary>
+        <Card className="mt-4 max-w-md">
+          <form action={createProject} className="flex flex-col gap-3">
+            <Field label="Project name" htmlFor="project_name">
+              <Input id="project_name" name="project_name" placeholder="Project name" required />
+            </Field>
+            <Field label="Client name" htmlFor="client_name">
+              <Input id="client_name" name="client_name" placeholder="Client name (optional)" />
+            </Field>
+            <Field label="Description" htmlFor="description">
+              <Textarea id="description" name="description" placeholder="Description (optional)" rows={2} />
+            </Field>
+            <Field label="Start date" htmlFor="start_date">
+              <Input id="start_date" name="start_date" type="date" />
+            </Field>
+            <Button type="submit" variant="primary" className="mt-1 w-fit">
+              Create project
+            </Button>
+          </form>
+        </Card>
       </details>
     </main>
   );

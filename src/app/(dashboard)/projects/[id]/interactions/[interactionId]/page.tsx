@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole, isLead } from "@/lib/projects/role";
@@ -18,6 +17,7 @@ import {
   generateMinutes,
   updateMinutes,
 } from "./minutes-actions";
+import { BackLink, Badge, Button, Card, Input, PageHeader, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -132,33 +132,25 @@ export default async function InteractionDetailPage({
   ];
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <Link
-        href={`/projects/${projectId}/interactions`}
-        className="text-sm text-neutral-500 hover:underline"
-      >
-        ← All interactions
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">
-        {interaction.title || `Untitled ${interaction.source_type}`}
-      </h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        {interaction.source_type} · {interaction.processing_status} ·{" "}
-        {utterances?.length ?? 0} utterances
-      </p>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <BackLink href={`/projects/${projectId}/interactions`}>All interactions</BackLink>
+      <PageHeader
+        title={interaction.title || `Untitled ${interaction.source_type}`}
+        subtitle={`${interaction.source_type} · ${interaction.processing_status} · ${utterances?.length ?? 0} utterances`}
+      />
 
       {interaction.is_purged ? (
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="mt-2 text-xs text-muted">
           Content purged (EPIC 17) — structural record retained for traceability.
         </p>
       ) : (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-3">
           {interaction.purge_after && (
-            <p className="text-xs text-neutral-500">Scheduled purge: {interaction.purge_after}</p>
+            <p className="text-xs text-muted">Scheduled purge: {interaction.purge_after}</p>
           )}
           {userIsLead && (
             <form action={purgeForInteraction}>
-              <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-300">
+              <button type="submit" className="text-xs text-red-600 hover:underline dark:text-red-400">
                 Purge now
               </button>
             </form>
@@ -167,28 +159,27 @@ export default async function InteractionDetailPage({
       )}
 
       {(interaction.processing_status === "Received" || interaction.processing_status === "Indexed") && (
-        <form action={triggerForInteraction} className="mt-6">
-          <button
-            type="submit"
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
-            Run extraction
-          </button>
-          <p className="mt-1 text-xs text-neutral-500">
-            Queues candidate decisions, action items, clarifications, risks and change signals.
-          </p>
-        </form>
+        <Card className="mt-6">
+          <form action={triggerForInteraction}>
+            <Button type="submit" variant="primary">
+              Run extraction
+            </Button>
+            <p className="mt-2 text-xs text-muted">
+              Queues candidate decisions, action items, clarifications, risks and change signals.
+            </p>
+          </form>
+        </Card>
       )}
 
       {(candidates ?? []).length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-medium">
+          <h2 className="text-sm font-semibold">
             Candidates ({pendingCount} pending of {candidates?.length})
           </h2>
 
           {contradicting.length > 0 && (
-            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
-              <h3 className="text-sm font-medium text-amber-900 dark:text-amber-200">
+            <Card className="mt-3 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
                 Contradictions — Lead BA resolution required
               </h3>
               <ul className="mt-2 flex flex-col gap-3">
@@ -199,29 +190,31 @@ export default async function InteractionDetailPage({
                     {userIsLead ? (
                       <form action={resolveForInteraction} className="mt-2 flex flex-col gap-2">
                         <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                        <input
+                        <Input
                           name="resolution_note"
                           placeholder="Resolution note"
                           required
-                          className="rounded-md border border-amber-300 px-2 py-1 text-xs dark:border-amber-800 dark:bg-neutral-900"
+                          className="border-amber-300 bg-white text-xs dark:border-amber-800 dark:bg-neutral-900"
                         />
                         <div className="flex gap-2">
-                          <button
+                          <Button
                             type="submit"
                             name="decision"
                             value="accept"
-                            className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white dark:bg-amber-200 dark:text-amber-950"
+                            size="sm"
+                            className="bg-amber-900 text-white hover:bg-amber-800 dark:bg-amber-200 dark:text-amber-950"
                           >
                             Accept (supersedes old decision)
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="submit"
                             name="decision"
                             value="reject"
-                            className="rounded-full border border-amber-900 px-3 py-1 text-xs font-medium text-amber-900 dark:border-amber-200 dark:text-amber-200"
+                            size="sm"
+                            className="border border-amber-900 text-amber-900 dark:border-amber-200 dark:text-amber-200"
                           >
                             Reject
-                          </button>
+                          </Button>
                         </div>
                       </form>
                     ) : (
@@ -230,53 +223,37 @@ export default async function InteractionDetailPage({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           )}
 
           {plainPending.length > 0 && (
             <ul className="mt-3 flex flex-col gap-3">
               {plainPending.map((c) => (
-                <li
-                  key={c.candidate_id}
-                  className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800"
-                >
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs dark:bg-neutral-800">
-                    {CANDIDATE_LABELS[c.candidate_type]}
-                  </span>
-                  <span className="ml-2 text-xs text-neutral-500">
-                    confidence {Math.round(c.confidence_score * 100)}%
-                  </span>
-                  <form action={acceptForInteraction} className="mt-2 flex flex-col gap-2">
-                    <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                    <textarea
-                      name="statement"
-                      defaultValue={c.statement}
-                      rows={2}
-                      className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                    />
-                    {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (
-                      <input
-                        name="suggested_owner"
-                        defaultValue={c.suggested_owner ?? ""}
-                        placeholder="Owner name"
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                      />
-                    )}
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        className="rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-                      >
-                        Accept
+                <li key={c.candidate_id}>
+                  <Card>
+                    <Badge>{CANDIDATE_LABELS[c.candidate_type]}</Badge>
+                    <span className="ml-2 text-xs text-muted">
+                      confidence {Math.round(c.confidence_score * 100)}%
+                    </span>
+                    <form action={acceptForInteraction} className="mt-2 flex flex-col gap-2">
+                      <input type="hidden" name="candidate_id" value={c.candidate_id} />
+                      <Textarea name="statement" defaultValue={c.statement} rows={2} className="text-xs" />
+                      {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (
+                        <Input name="suggested_owner" defaultValue={c.suggested_owner ?? ""} placeholder="Owner name" className="text-xs" />
+                      )}
+                      <div className="flex gap-2">
+                        <Button type="submit" variant="primary" size="sm">
+                          Accept
+                        </Button>
+                      </div>
+                    </form>
+                    <form action={rejectForInteraction} className="mt-1">
+                      <input type="hidden" name="candidate_id" value={c.candidate_id} />
+                      <button type="submit" className="text-xs text-red-600 hover:underline dark:text-red-400">
+                        Reject
                       </button>
-                    </div>
-                  </form>
-                  <form action={rejectForInteraction} className="mt-1">
-                    <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                    <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-300">
-                      Reject
-                    </button>
-                  </form>
+                    </form>
+                  </Card>
                 </li>
               ))}
             </ul>
@@ -284,17 +261,15 @@ export default async function InteractionDetailPage({
 
           {decided.length > 0 && (
             <details className="mt-4">
-              <summary className="cursor-pointer text-xs text-neutral-500">
-                Decided ({decided.length})
-              </summary>
+              <summary className="cursor-pointer text-xs text-muted">Decided ({decided.length})</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {decided.map((c) => (
-                  <li key={c.candidate_id} className="text-xs text-neutral-500">
+                  <li key={c.candidate_id} className="text-xs text-muted">
                     [{c.status}] {CANDIDATE_LABELS[c.candidate_type]}: {c.statement}
                     {c.status === "Accepted" && (
                       <form action={revertForInteraction} className="inline">
                         <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                        <button type="submit" className="ml-2 underline">
+                        <button type="submit" className="ml-2 text-indigo-600 underline dark:text-indigo-400">
                           revert
                         </button>
                       </form>
@@ -307,12 +282,9 @@ export default async function InteractionDetailPage({
 
           {interaction.processing_status === "Extracted" && pendingCount === 0 && (candidates?.length ?? 0) > 0 && (
             <form action={confirmForInteraction} className="mt-4">
-              <button
-                type="submit"
-                className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-              >
+              <Button type="submit" variant="primary">
                 Confirm &amp; continue to minutes
-              </button>
+              </Button>
             </form>
           )}
         </section>
@@ -320,41 +292,26 @@ export default async function InteractionDetailPage({
 
       {interaction.processing_status === "Confirmed" && !minutes && (
         <form action={generateMinutesForInteraction} className="mt-8">
-          <button
-            type="submit"
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-          >
+          <Button type="submit" variant="primary">
             Generate minutes of meeting
-          </button>
+          </Button>
         </form>
       )}
 
       {minutes && (
-        <section className="mt-8 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-          <h2 className="text-sm font-medium">
-            Minutes of meeting — <span className="text-neutral-500">{minutes.status}</span>
+        <Card className="mt-8">
+          <h2 className="text-sm font-semibold">
+            Minutes of meeting — <span className="text-muted">{minutes.status}</span>
           </h2>
 
           {(minutes.status === "Draft" || minutes.status === "InReview") && (
             <form action={updateMinutesForInteraction} className="mt-3 flex flex-col gap-2">
               <input type="hidden" name="minutes_id" value={minutes.minutes_id} />
-              <input
-                name="subject"
-                defaultValue={minutes.subject ?? ""}
-                className="rounded-md border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              />
-              <textarea
-                name="body_html"
-                defaultValue={minutes.body_html ?? ""}
-                rows={10}
-                className="rounded-md border border-neutral-300 px-2 py-1 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-900"
-              />
-              <button
-                type="submit"
-                className="w-fit rounded-full border border-neutral-300 px-4 py-2 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-              >
+              <Input name="subject" defaultValue={minutes.subject ?? ""} />
+              <Textarea name="body_html" defaultValue={minutes.body_html ?? ""} rows={10} className="font-mono text-xs" />
+              <Button type="submit" size="sm" className="w-fit">
                 Save edits
-              </button>
+              </Button>
             </form>
           )}
 
@@ -366,7 +323,7 @@ export default async function InteractionDetailPage({
           )}
 
           {minutes.status === "Draft" && userIsLead && recipientOptions.length > 0 && (
-            <form action={approveForInteraction} className="mt-4 flex flex-col gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <form action={approveForInteraction} className="mt-4 flex flex-col gap-2 border-t border-surface-border pt-4">
               <input type="hidden" name="minutes_id" value={minutes.minutes_id} />
               <p className="text-xs font-medium">Approve and distribute to:</p>
               {recipientOptions.map((r) => (
@@ -375,68 +332,56 @@ export default async function InteractionDetailPage({
                   {r.label} ({r.email})
                 </label>
               ))}
-              <button
-                type="submit"
-                className="mt-1 w-fit rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
-              >
+              <Button type="submit" variant="primary" size="sm" className="mt-1 w-fit">
                 Approve &amp; distribute
-              </button>
+              </Button>
             </form>
           )}
 
           {minutes.status === "Distributed" && (
-            <form action={disputeForInteraction} className="mt-4 flex flex-col gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <form action={disputeForInteraction} className="mt-4 flex flex-col gap-2 border-t border-surface-border pt-4">
               <input type="hidden" name="minutes_id" value={minutes.minutes_id} />
-              <textarea
-                name="dispute_note"
-                placeholder="Dispute reason"
-                rows={2}
-                className="rounded-md border border-red-300 px-2 py-1 text-xs dark:border-red-800 dark:bg-neutral-900"
-              />
-              <button
-                type="submit"
-                className="w-fit rounded-full border border-red-300 px-4 py-2 text-xs text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
-              >
+              <Textarea name="dispute_note" placeholder="Dispute reason" rows={2} className="border-red-300 dark:border-red-800" />
+              <Button type="submit" variant="danger" size="sm" className="w-fit">
                 Dispute minutes
-              </button>
+              </Button>
             </form>
           )}
-        </section>
+        </Card>
       )}
 
       {unmappedSpeakers.length > 0 && (members?.length || stakeholders?.length) ? (
-        <div className="mt-8 rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
-          <h2 className="text-sm font-medium text-amber-900 dark:text-amber-200">
+        <Card className="mt-8 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+          <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
             Unmapped speakers: {unmappedSpeakers.join(", ")}
           </h2>
           <p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
             Map each utterance below to a project member or stakeholder.
           </p>
-        </div>
+        </Card>
       ) : null}
 
       <details className="mt-8">
-        <summary className="cursor-pointer text-sm font-medium">Transcript ({utterances?.length ?? 0} utterances)</summary>
+        <summary className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
+          Transcript ({utterances?.length ?? 0} utterances)
+        </summary>
         <ul className="mt-3 flex flex-col gap-3">
           {utterances?.map((u) => (
-            <li
-              key={u.utterance_id}
-              className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">{u.speaker_label ?? "Unknown speaker"}</span>
-                {u.speaker_label && !u.speaker_user_id && !u.speaker_stakeholder_id && (
-                  <SpeakerMapSelect
-                    projectId={projectId}
-                    interactionId={interactionId}
-                    utteranceId={u.utterance_id}
-                    options={speakerOptions}
-                  />
-                )}
-              </div>
-              <p className="mt-1 whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
-                {u.content}
-              </p>
+            <li key={u.utterance_id}>
+              <Card>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{u.speaker_label ?? "Unknown speaker"}</span>
+                  {u.speaker_label && !u.speaker_user_id && !u.speaker_stakeholder_id && (
+                    <SpeakerMapSelect
+                      projectId={projectId}
+                      interactionId={interactionId}
+                      utteranceId={u.utterance_id}
+                      options={speakerOptions}
+                    />
+                  )}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/80">{u.content}</p>
+              </Card>
             </li>
           ))}
         </ul>
