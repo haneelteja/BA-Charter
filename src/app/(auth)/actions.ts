@@ -61,6 +61,17 @@ export async function signInWithMagicLink(formData: FormData) {
   });
 
   if (error) {
+    // Supabase's default built-in email sender is rate-limited to a
+    // handful of sends per hour — it's a sandbox for local dev, not meant
+    // for production traffic. A custom SMTP provider (e.g. Resend, already
+    // configured for the app's other outbound email) needs to be set in
+    // Supabase Dashboard → Authentication → Emails → SMTP Settings to lift
+    // this. Use the password form below in the meantime.
+    if (error.code === "over_email_send_rate_limit") {
+      throw new Error(
+        "Magic link emails are rate-limited on this project's default email sender right now. Use the password form below instead, or try again shortly."
+      );
+    }
     throw new Error(error.message);
   }
 
