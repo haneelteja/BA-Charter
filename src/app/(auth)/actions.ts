@@ -12,6 +12,18 @@ async function getEmailRedirectTo() {
   return `${origin}/auth/confirm`;
 }
 
+/**
+ * Next.js redacts thrown Server Action error messages in production builds
+ * — the client only ever sees "Minified React error #441", regardless of
+ * any error.tsx boundary, since the real message never crosses the wire.
+ * Returning via redirect()+searchParams sidesteps that entirely (and
+ * matches the existing ?check-email=1 success-state pattern below) instead
+ * of throwing.
+ */
+function errorRedirect(message: string): never {
+  redirect(`/sign-in?error=${encodeURIComponent(message)}`);
+}
+
 export async function signInWithPassword(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -20,7 +32,7 @@ export async function signInWithPassword(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    throw new Error(error.message);
+    errorRedirect(error.message);
   }
 
   redirect("/");
@@ -42,7 +54,7 @@ export async function signUpWithPassword(formData: FormData) {
   });
 
   if (error) {
-    throw new Error(error.message);
+    errorRedirect(error.message);
   }
 
   redirect("/sign-in?check-email=1");
@@ -66,7 +78,7 @@ export async function signInWithMagicLink(formData: FormData) {
     // configured in Dashboard → Authentication → Emails → SMTP Settings) —
     // and Supabase's own message already says exactly which one and how
     // long to wait, so it's passed through as-is rather than guessing.
-    throw new Error(error.message);
+    errorRedirect(error.message);
   }
 
   redirect("/sign-in?check-email=1");

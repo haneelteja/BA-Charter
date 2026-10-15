@@ -8,7 +8,7 @@ import { Button, Card, Field, Input } from "@/components/ui";
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ "check-email"?: string }>;
+  searchParams: Promise<{ "check-email"?: string; error?: string }>;
 }) {
   const params = await searchParams;
 
@@ -26,6 +26,12 @@ export default async function SignInPage({
         {params["check-email"] && (
           <div className="mb-6 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-200">
             Check your email to finish signing in.
+          </div>
+        )}
+
+        {params.error && (
+          <div role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+            {params.error}
           </div>
         )}
 
