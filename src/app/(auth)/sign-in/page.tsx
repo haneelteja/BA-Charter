@@ -3,12 +3,12 @@ import {
   signInWithMagicLink,
   signUpWithPassword,
 } from "../actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input, PasswordInput } from "@/components/ui";
 
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ "check-email"?: string; error?: string }>;
+  searchParams: Promise<{ "check-email"?: string; error?: string; form?: string }>;
 }) {
   const params = await searchParams;
 
@@ -58,7 +58,7 @@ export default async function SignInPage({
               <Input id="password-email" name="email" type="email" placeholder="you@company.com" required />
             </Field>
             <Field label="Password" htmlFor="password-password">
-              <Input id="password-password" name="password" type="password" placeholder="Password" required />
+              <PasswordInput id="password-password" name="password" placeholder="Password" required />
             </Field>
             <Button type="submit" variant="secondary">
               Sign in
@@ -66,7 +66,7 @@ export default async function SignInPage({
           </form>
         </Card>
 
-        <details className="mt-4 text-sm text-muted">
+        <details className="mt-4 text-sm text-muted" open={params.form === "signup"}>
           <summary className="cursor-pointer text-center transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
             New here? Create an account
           </summary>
@@ -79,7 +79,10 @@ export default async function SignInPage({
                 <Input id="signup-email" name="email" type="email" placeholder="you@company.com" required />
               </Field>
               <Field label="Password" htmlFor="signup-password" hint="At least 8 characters.">
-                <Input id="signup-password" name="password" type="password" placeholder="Password" required minLength={8} />
+                <PasswordInput id="signup-password" name="password" placeholder="Password" required minLength={8} />
+              </Field>
+              <Field label="Confirm password" htmlFor="signup-confirm-password">
+                <PasswordInput id="signup-confirm-password" name="confirm_password" placeholder="Confirm password" required minLength={8} />
               </Field>
               <Button type="submit" variant="secondary">
                 Create account

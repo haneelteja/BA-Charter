@@ -20,8 +20,9 @@ async function getEmailRedirectTo() {
  * matches the existing ?check-email=1 success-state pattern below) instead
  * of throwing.
  */
-function errorRedirect(message: string): never {
-  redirect(`/sign-in?error=${encodeURIComponent(message)}`);
+function errorRedirect(message: string, form?: "signup"): never {
+  const suffix = form ? `&form=${form}` : "";
+  redirect(`/sign-in?error=${encodeURIComponent(message)}${suffix}`);
 }
 
 export async function signInWithPassword(formData: FormData) {
@@ -41,7 +42,12 @@ export async function signInWithPassword(formData: FormData) {
 export async function signUpWithPassword(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
+
+  if (password !== confirmPassword) {
+    errorRedirect("Passwords don't match.", "signup");
+  }
 
   const supabase = await getSupabaseServerClient();
   const { error } = await supabase.auth.signUp({
@@ -54,7 +60,7 @@ export async function signUpWithPassword(formData: FormData) {
   });
 
   if (error) {
-    errorRedirect(error.message);
+    errorRedirect(error.message, "signup");
   }
 
   redirect("/sign-in?check-email=1");
