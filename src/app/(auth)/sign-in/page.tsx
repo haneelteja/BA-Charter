@@ -3,7 +3,7 @@ import {
   signInWithMagicLink,
   signUpWithPassword,
 } from "../actions";
-import { Button, Card, Field, Input, PasswordInput } from "@/components/ui";
+import { Button, Card, Field, Input, PasswordInput, PasswordStrengthField } from "@/components/ui";
 
 export default async function SignInPage({
   searchParams,
@@ -78,9 +78,7 @@ export default async function SignInPage({
               <Field label="Email" htmlFor="signup-email">
                 <Input id="signup-email" name="email" type="email" placeholder="you@company.com" required />
               </Field>
-              <Field label="Password" htmlFor="signup-password" hint="At least 8 characters.">
-                <PasswordInput id="signup-password" name="password" placeholder="Password" required minLength={8} />
-              </Field>
+              <PasswordStrengthField id="signup-password" name="password" placeholder="Password" />
               <Field label="Confirm password" htmlFor="signup-confirm-password">
                 <PasswordInput id="signup-confirm-password" name="confirm_password" placeholder="Confirm password" required minLength={8} />
               </Field>

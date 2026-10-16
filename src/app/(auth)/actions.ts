@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFailedPasswordRules, isValidEmail } from "@/lib/validation";
 
 async function getEmailRedirectTo() {
   const headerList = await headers();
@@ -44,6 +45,15 @@ export async function signUpWithPassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirm_password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
+
+  if (!isValidEmail(email)) {
+    errorRedirect("Enter a valid email address.", "signup");
+  }
+
+  const failedRules = getFailedPasswordRules(password);
+  if (failedRules.length > 0) {
+    errorRedirect(`Password must have ${failedRules.join(", ").toLowerCase()}.`, "signup");
+  }
 
   if (password !== confirmPassword) {
     errorRedirect("Passwords don't match.", "signup");
