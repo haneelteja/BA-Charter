@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   signInWithPassword,
   signInWithMagicLink,
@@ -53,7 +54,15 @@ export default async function SignInPage({
           </div>
 
           <form action={signInWithPassword} className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold">Password</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Password</h2>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Field label="Email" htmlFor="password-email">
               <Input id="password-email" name="email" type="email" placeholder="you@company.com" required />
             </Field>

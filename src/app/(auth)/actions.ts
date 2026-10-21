@@ -21,9 +21,10 @@ async function getEmailRedirectTo() {
  * matches the existing ?check-email=1 success-state pattern below) instead
  * of throwing.
  */
-function errorRedirect(message: string, form?: "signup"): never {
-  const suffix = form ? `&form=${form}` : "";
-  redirect(`/sign-in?error=${encodeURIComponent(message)}${suffix}`);
+function errorRedirect(message: string, options?: { path?: string; form?: "signup" }): never {
+  const path = options?.path ?? "/sign-in";
+  const suffix = options?.form ? `&form=${options.form}` : "";
+  redirect(`${path}?error=${encodeURIComponent(message)}${suffix}`);
 }
 
 export async function signInWithPassword(formData: FormData) {
@@ -47,16 +48,16 @@ export async function signUpWithPassword(formData: FormData) {
   const fullName = String(formData.get("full_name") ?? "").trim();
 
   if (!isValidEmail(email)) {
-    errorRedirect("Enter a valid email address.", "signup");
+    errorRedirect("Enter a valid email address.", { form: "signup" });
   }
 
   const failedRules = getFailedPasswordRules(password);
   if (failedRules.length > 0) {
-    errorRedirect(`Password must have ${failedRules.join(", ").toLowerCase()}.`, "signup");
+    errorRedirect(`Password must have ${failedRules.join(", ").toLowerCase()}.`, { form: "signup" });
   }
 
   if (password !== confirmPassword) {
-    errorRedirect("Passwords don't match.", "signup");
+    errorRedirect("Passwords don't match.", { form: "signup" });
   }
 
   const supabase = await getSupabaseServerClient();
@@ -70,7 +71,7 @@ export async function signUpWithPassword(formData: FormData) {
   });
 
   if (error) {
-    errorRedirect(error.message, "signup");
+    errorRedirect(error.message, { form: "signup" });
   }
 
   redirect("/sign-in?check-email=1");
@@ -98,6 +99,71 @@ export async function signInWithMagicLink(formData: FormData) {
   }
 
   redirect("/sign-in?check-email=1");
+}
+
+/**
+ * §Forgot password, step 1: Supabase deliberately returns success here
+ * regardless of whether the email is registered (enumeration protection),
+ * so there's no error branch to distinguish "no such account" — the
+ * check-email state is the only outcome either way.
+ */
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!isValidEmail(email)) {
+    errorRedirect("Enter a valid email address.", { path: "/forgot-password" });
+  }
+
+  const supabase = await getSupabaseServerClient();
+  const headerList = await headers();
+  const origin =
+    headerList.get("origin") ??
+    `${headerList.get("x-forwarded-proto") ?? "http"}://${headerList.get("host")}`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    // Reuses the existing /auth/confirm route — Supabase's recovery link
+    // is the same token_hash+type=recovery OTP mechanism as magic link
+    // and signup confirmation, already handled generically there.
+    redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent("/reset-password")}`,
+  });
+
+  if (error) {
+    errorRedirect(error.message, { path: "/forgot-password" });
+  }
+
+  redirect("/forgot-password?check-email=1");
+}
+
+/**
+ * §Forgot password, step 2: only reachable with the session
+ * verifyOtp(type=recovery) establishes after the email link — the
+ * /reset-password page itself checks for that session and bounces back
+ * to sign-in if it's missing, so a failure here means the recovery
+ * session expired between page load and submit.
+ */
+export async function updatePassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  const failedRules = getFailedPasswordRules(password);
+  if (failedRules.length > 0) {
+    errorRedirect(`Password must have ${failedRules.join(", ").toLowerCase()}.`, {
+      path: "/reset-password",
+    });
+  }
+
+  if (password !== confirmPassword) {
+    errorRedirect("Passwords don't match.", { path: "/reset-password" });
+  }
+
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    errorRedirect(error.message, { path: "/reset-password" });
+  }
+
+  redirect("/");
 }
 
 export async function signOut() {

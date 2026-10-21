@@ -21,5 +21,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  redirect("/sign-in?error=invalid-link");
+  redirect(`/sign-in?error=${encodeURIComponent("This link is invalid or has expired.")}`);
 }
