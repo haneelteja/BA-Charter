@@ -24,6 +24,7 @@ const SECTIONS = [
   { href: "changes", label: "Change requests", hint: "Impact analysis" },
   { href: "guardrails", label: "Guardrails", hint: "Quality rules" },
   { href: "search", label: "Search", hint: "Semantic retrieval" },
+  { href: "delivery", label: "Delivery partners", hint: "Vendors & analytics" },
 ];
 
 export default async function ProjectPage({

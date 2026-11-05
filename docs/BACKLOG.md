@@ -468,9 +468,13 @@ exists — isolated to this one file, no call-site changes needed elsewhere.
 - Transactional email provider integration — **Resend** (resolved decision,
   `EXECUTION_PLAN.md` §3.F) — **S**
 - Templates: minutes of meeting, clarification request, change notification — **M**
-- Recipient tracking for minutes (`minutes_recipient.acknowledged_at`) —
-  acknowledgement link/webhook that feeds the EPIC 5 commit-to-charter
-  auto-promotion logic — **M**
+- Recipient tracking for minutes: `minutes_recipient` rows are written at
+  distribution time (who was sent what). **Not built**: the
+  acknowledgement link/webhook that would set `acknowledged_at` — same
+  deferral already noted under EPIC 5 (a real unauthenticated ack link for
+  external recipients is its own scope). Auto-promotion to `Confirmed`
+  currently runs purely on the `mom_ack_window_hours` timer, independent of
+  whether anyone actually acknowledged — **M**, remaining
 
 **Depends on:** EPIC 0.
 
@@ -557,3 +561,42 @@ logic, also called directly by the manual "Purge now" action, Lead-BA-gated,
 on the interaction detail page). Verified against the real database that
 the due-query correctly includes/excludes rows by `purge_after`/`is_purged`
 and that redaction leaves the structural row and FK-referencing rows intact.
+
+---
+
+## EPIC 18 — Delivery Partners — ✅ implemented
+
+**Why:** Requested standalone of the original requirements/BA domain — tracks
+real-world delivery/logistics vendors per project, not project-delivery
+("Delivery Team Member" the role, or "delivery" of stories/epics) which
+already exist elsewhere in the app under different names.
+
+- `delivery_partner`: per-project vendor master data with a `priority_order`
+  the app renumbers on reorder (migration `0016`) — configured, reordered
+  (up/down), and deactivated/deleted from the new "Delivery partners" tab
+  (`projects/[id]/delivery`).
+- `delivery`: one delivery per recipient; on creation it's auto-assigned to
+  the first active partner in priority order. Lifecycle: Pending → Assigned
+  → InTransit → Delivered, with Failed as the terminal state when every
+  active partner has been tried.
+- `delivery_attempt`: full per-partner history for one delivery, since
+  fallback can cycle through several partners — this is what per-partner
+  analytics aggregate over (a partner's record must reflect every attempt
+  it actually handled, not just deliveries that ended with it).
+- Fallback routing: "Partner declined / failed" on the delivery's current
+  attempt advances to the next active partner by `priority_order`, or marks
+  the delivery Failed if none remain. **Deferred**: this is a manual
+  trigger only — no automatic SLA-timeout fallback (would need a per-partner
+  threshold and a sweep job, matching the existing
+  `sweepActionItemOverdue`/`sweepClarificationAgeing` pattern); revisit if
+  real usage needs it.
+- Per-partner analytics on the same page: volume handled (attempt count),
+  success rate (Delivered ÷ (Delivered + Declined) among resolved
+  attempts), average turnaround (resolved_at − assigned_at on Delivered
+  attempts), and delivered spend (sum of `delivery.cost` for deliveries
+  this partner completed) — computed in-page from `delivery_attempt`/
+  `delivery` rows, same small-scale-aggregation-in-JS style as `coverage_score`
+  elsewhere rather than a materialized view.
+- RLS: same project-membership floor as every other table (`delivery_partner`,
+  `delivery` directly; `delivery_attempt` one join away via `delivery_id`,
+  same pattern as `utterance`/`acceptance_criterion`).
