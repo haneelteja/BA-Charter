@@ -167,10 +167,18 @@ primary day-to-day workflow.
   pre-accepted with a revert action; case cannot advance while any candidate
   is still Pending, which covers unresolved contradictions since those stay
   Pending until resolved (maps to the BPMN gateway `Gateway_Contradiction`).
-  **Deferred, not built**: merge/split candidates — accept/edit/reject
-  covers the common path; merge/split adds real complexity (what happens to
-  source_utterance_id, confidence scoring across merged items) for a case
-  that didn't come up in verification. Revisit if real usage needs it.
+  **Merge/split** (migration `0019`): check two or more same-type Pending
+  candidates and merge them into one new Pending candidate (confidence
+  averaged, source_utterance_id/owner/due date carried from whichever
+  merged one has them first), or split one Pending candidate into several
+  by entering one statement per line. Both go through the normal
+  accept/reject flow afterward like any other candidate. Originals are
+  marked `Merged`/`Split` (terminal, not deleted) and linked to the
+  result(s) both ways (`merged_from_candidate_ids`/`merged_into_candidate_id`,
+  `split_from_candidate_id`/`split_into_candidate_ids`) so the lineage stays
+  queryable — the resulting row(s) still carry only one
+  `source_utterance_id` each, same structural limit every committed
+  decision/action_item/clarification row already has.
 - **Resolve contradiction** sub-flow (Lead BA only, role-checked) —
   `resolveContradiction` action, re-enters Confirm per BPMN `Flow_06`.
 - **Publish minutes stage**: LLM-drafted minutes (`generateMinutes`), BA

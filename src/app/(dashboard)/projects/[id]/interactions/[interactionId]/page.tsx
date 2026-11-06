@@ -5,9 +5,11 @@ import { SpeakerMapSelect } from "./SpeakerMapSelect";
 import {
   acceptCandidate,
   confirmInteraction,
+  mergeCandidates,
   rejectCandidate,
   resolveContradiction,
   revertCandidate,
+  splitCandidate,
   triggerExtraction,
 } from "./confirm-actions";
 import { purgeInteractionNow } from "../actions";
@@ -112,6 +114,8 @@ export default async function InteractionDetailPage({
   const rejectForInteraction = rejectCandidate.bind(null, projectId, interactionId);
   const revertForInteraction = revertCandidate.bind(null, projectId, interactionId);
   const resolveForInteraction = resolveContradiction.bind(null, projectId, interactionId);
+  const mergeForInteraction = mergeCandidates.bind(null, projectId, interactionId);
+  const splitForInteraction = splitCandidate.bind(null, projectId, interactionId);
   const confirmForInteraction = confirmInteraction.bind(null, projectId, interactionId);
   const generateMinutesForInteraction = generateMinutes.bind(null, projectId, interactionId);
   const updateMinutesForInteraction = updateMinutes.bind(null, projectId, interactionId);
@@ -227,36 +231,89 @@ export default async function InteractionDetailPage({
           )}
 
           {plainPending.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-3">
-              {plainPending.map((c) => (
-                <li key={c.candidate_id}>
-                  <Card>
-                    <Badge>{CANDIDATE_LABELS[c.candidate_type]}</Badge>
-                    <span className="ml-2 text-xs text-muted">
-                      confidence {Math.round(c.confidence_score * 100)}%
-                    </span>
-                    <form action={acceptForInteraction} className="mt-2 flex flex-col gap-2">
-                      <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                      <Textarea name="statement" defaultValue={c.statement} rows={2} className="text-xs" />
-                      {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (
-                        <Input name="suggested_owner" defaultValue={c.suggested_owner ?? ""} placeholder="Owner name" className="text-xs" />
-                      )}
-                      <div className="flex gap-2">
-                        <Button type="submit" variant="primary" size="sm">
-                          Accept
-                        </Button>
-                      </div>
-                    </form>
-                    <form action={rejectForInteraction} className="mt-1">
-                      <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                      <button type="submit" className="text-xs text-red-600 hover:underline dark:text-red-400">
-                        Reject
-                      </button>
-                    </form>
+            <>
+              {plainPending.length >= 2 && (
+                <form id="merge-candidates-form" action={mergeForInteraction} className="mt-3">
+                  <Card className="border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950">
+                    <p className="text-xs font-medium text-indigo-900 dark:text-indigo-200">
+                      Check two or more candidates of the same type below, write the combined statement, then merge.
+                    </p>
+                    <Textarea
+                      name="merged_statement"
+                      placeholder="Combined statement"
+                      rows={2}
+                      className="mt-2 border-indigo-300 bg-white text-xs dark:border-indigo-800 dark:bg-neutral-900"
+                    />
+                    <Button type="submit" size="sm" className="mt-2 w-fit">
+                      Merge checked candidates
+                    </Button>
                   </Card>
-                </li>
-              ))}
-            </ul>
+                </form>
+              )}
+
+              <ul className="mt-3 flex flex-col gap-3">
+                {plainPending.map((c) => (
+                  <li key={c.candidate_id}>
+                    <Card>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <Badge>{CANDIDATE_LABELS[c.candidate_type]}</Badge>
+                          <span className="ml-2 text-xs text-muted">
+                            confidence {Math.round(c.confidence_score * 100)}%
+                          </span>
+                        </div>
+                        {plainPending.length >= 2 && (
+                          <label className="flex items-center gap-1 text-xs text-muted">
+                            <input
+                              type="checkbox"
+                              form="merge-candidates-form"
+                              name="candidate_ids"
+                              value={c.candidate_id}
+                            />
+                            Merge
+                          </label>
+                        )}
+                      </div>
+                      <form action={acceptForInteraction} className="mt-2 flex flex-col gap-2">
+                        <input type="hidden" name="candidate_id" value={c.candidate_id} />
+                        <Textarea name="statement" defaultValue={c.statement} rows={2} className="text-xs" />
+                        {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (
+                          <Input name="suggested_owner" defaultValue={c.suggested_owner ?? ""} placeholder="Owner name" className="text-xs" />
+                        )}
+                        <div className="flex gap-2">
+                          <Button type="submit" variant="primary" size="sm">
+                            Accept
+                          </Button>
+                        </div>
+                      </form>
+                      <form action={rejectForInteraction} className="mt-1">
+                        <input type="hidden" name="candidate_id" value={c.candidate_id} />
+                        <button type="submit" className="text-xs text-red-600 hover:underline dark:text-red-400">
+                          Reject
+                        </button>
+                      </form>
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-muted transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
+                          Split into multiple
+                        </summary>
+                        <form action={splitForInteraction} className="mt-2 flex flex-col gap-2">
+                          <input type="hidden" name="candidate_id" value={c.candidate_id} />
+                          <Textarea
+                            name="statements"
+                            placeholder={"One statement per line, e.g.:\nFirst separate statement\nSecond separate statement"}
+                            rows={3}
+                            className="text-xs"
+                          />
+                          <Button type="submit" size="sm" className="w-fit">
+                            Split
+                          </Button>
+                        </form>
+                      </details>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {decided.length > 0 && (
