@@ -144,6 +144,13 @@ export default async function InteractionDetailPage({
         subtitle={`${interaction.source_type} · ${interaction.processing_status} · ${utterances?.length ?? 0} utterances`}
       />
 
+      {interaction.sla_breached_at && !minutes && (
+        <p className="mt-2 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+          <Badge tone="red">SLA breached</Badge>
+          Minutes weren&apos;t drafted within the 15-minute service level (§3.2).
+        </p>
+      )}
+
       {interaction.is_purged ? (
         <p className="mt-2 text-xs text-muted">
           Content purged (EPIC 17) — structural record retained for traceability.

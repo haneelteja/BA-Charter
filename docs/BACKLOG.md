@@ -203,8 +203,23 @@ primary day-to-day workflow.
     `src/lib/minutes/dispute.ts` so they land on identical state.
   - Risk / ChangeSignal candidates have no persistent home in the schema —
     they stay as Accepted `extraction_candidate` rows for traceability only.
-- Case-level SLA timer/alert (15-minute target) — **not built**; the job
-  queue enforces nothing about timing yet, just FIFO + retry.
+- Case-level SLA timer/alert (migration `0021`): Requirements §3.2 —
+  "minutes of meeting drafted within fifteen minutes of source upload."
+  `sweep_meeting_ingestion_sla` (`src/jobs/handlers/sweepMeetingIngestionSla.ts`)
+  flags any interaction with no `minutes_document` fifteen minutes after
+  `ingested_at`, setting `interaction.sla_breached_at` (idempotent, same
+  pattern as `action_item.escalated_at`) and logging an `Escalated` audit
+  event. Surfaced as a red "SLA breached" badge on the interactions list
+  and detail page, same visual pattern as the Overdue badge on action
+  items — there's still no notification/inbox system, so "alert" means
+  visible-in-app, not pushed. **Caveat inherited from the existing sweep
+  architecture, not specific to this one**: recurrence is the daily Vercel
+  Cron (`vercel.json`) plus whichever app request's `after()` happens to
+  drain the queue next — same as every other sweep in this codebase, no
+  standing worker — so in practice this flags breaches after the fact,
+  not within the 15-minute window itself. A true real-time alert would
+  need a much tighter cron schedule or a standing worker; revisit if real
+  usage needs the alert sooner than "next time someone opens the app."
 
 **Depends on:** EPIC 2 (charter writes), EPIC 3 (source interaction), EPIC 4
 (extraction + minutes generation), EPIC 15 (email distribution).
@@ -219,8 +234,9 @@ primary day-to-day workflow.
   explicit status field + transition guards (owner/raiser/Lead-BA gated) —
   `action-items/actions.ts`
 - Worklist page grouped by status, with an Overdue badge computed from
-  `due_date` — `action-items/page.tsx`. **Not built**: a true cross-project
-  "my action items" view — that's EPIC 13's job, this page is per-project only.
+  `due_date` — `action-items/page.tsx` (per-project). The cross-project "my
+  action items" view lives in EPIC 13's workspace instead
+  (`workspace/page.tsx`), now built.
 - Overdue escalation: self-rescheduling sweep job (`sweep_action_item_overdue`,
   hourly, idempotent via `escalated_at`) writes an `Escalated` audit event —
   no notification/inbox system exists yet, so "escalates to the Lead BA"
@@ -242,8 +258,8 @@ source), EPIC 0 (background sweep for escalation).
   classification defaults to InternalBusiness since extraction doesn't
   infer audience — editing that after creation isn't built yet.
 - Prepare / Ask: status transitions with channel + date captured —
-  `clarifications/actions.ts`. **Not built**: surfacing in call-prep
-  views — that's EPIC 13.
+  `clarifications/actions.ts`. Surfaced in EPIC 13's call-prep view
+  (`workspace/call-prep/page.tsx`), now built.
 - Answer: creates a real `decision` row at `Candidate` status (not routed
   through the Meeting Ingestion extraction/contradiction pipeline — this is
   a direct BA-recorded answer, not LLM output).
@@ -297,13 +313,14 @@ Request Analysis.
   SentencePattern, StructureCheck, and the explicit completeness sub-checks
   (negative paths, error handling, permissions, data migration) — is one
   LLM call — `src/lib/ai/guardrails.ts`
-- **Interactive checker, not a persisted gate**: there's no `user_story` row
-  to attach findings/dispositions to yet (EPIC 11 not built), so this ships
-  as a standalone tester — paste a story-shaped payload, get findings back.
-  The engine itself (`evaluateGuardrails`) is what EPIC 11's Check stage
-  will call directly once stories exist; the accept/dismiss-with-persistence
-  UI described in the original story is deferred until there's something
-  real to persist it against.
+- The guardrails page's own checker (`StoryChecker`) is a standalone
+  tester with no persistence — paste a story-shaped payload, get findings
+  back — since it predates EPIC 11's `user_story` row to attach them to.
+  EPIC 11's own Check stage, now built, calls the same engine
+  (`evaluateGuardrails`) directly and does persist: `guardrail_pass` on the
+  story row gates "Submit for review" without re-running the check every
+  time (see EPIC 11). The accept/dismiss-per-finding UI from the original
+  story spec is still not built — only pass/fail as a whole persists.
 
 **Depends on:** EPIC 2 (glossary/rules are project-scoped charter-adjacent
 config), EPIC 4's provider-agnostic LLM harness (reused for rule evaluation,

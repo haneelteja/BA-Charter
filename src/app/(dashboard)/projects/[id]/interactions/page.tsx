@@ -17,9 +17,17 @@ export default async function InteractionsPage({
 
   const { data: interactions, error } = await supabase
     .from("interaction")
-    .select("interaction_id, source_type, title, occurred_at, processing_status, ingested_at")
+    .select("interaction_id, source_type, title, occurred_at, processing_status, ingested_at, sla_breached_at")
     .eq("project_id", projectId)
     .order("ingested_at", { ascending: false });
+
+  const { data: minutesDocs } = interactions?.length
+    ? await supabase
+        .from("minutes_document")
+        .select("interaction_id")
+        .in("interaction_id", interactions.map((i) => i.interaction_id))
+    : { data: [] };
+  const interactionIdsWithMinutes = new Set((minutesDocs ?? []).map((m) => m.interaction_id));
 
   const createForProject = createInteraction.bind(null, projectId);
 
@@ -81,7 +89,12 @@ export default async function InteractionsPage({
               <Card className="transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium">{i.title || `Untitled ${i.source_type}`}</p>
-                  <Badge>{i.processing_status}</Badge>
+                  <div className="flex shrink-0 gap-1.5">
+                    <Badge>{i.processing_status}</Badge>
+                    {i.sla_breached_at && !interactionIdsWithMinutes.has(i.interaction_id) && (
+                      <Badge tone="red">SLA breached</Badge>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-1 text-xs text-muted">{i.source_type}</p>
               </Card>

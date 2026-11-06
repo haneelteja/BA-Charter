@@ -4,6 +4,7 @@ import { handlePromoteProvisionalDecisions } from "./handlers/promoteProvisional
 import { handleSweepActionItemOverdue } from "./handlers/sweepActionItemOverdue";
 import { handleSweepClarificationAgeing } from "./handlers/sweepClarificationAgeing";
 import { handleSweepDeliveryTimeout } from "./handlers/sweepDeliveryTimeout";
+import { handleSweepMeetingIngestionSla } from "./handlers/sweepMeetingIngestionSla";
 import { handleEmbedObject } from "./handlers/embedObject";
 import { handleRetentionPurge } from "./handlers/retentionPurge";
 
@@ -17,6 +18,7 @@ export const handlers: Record<JobType, Handler> = {
   sweep_action_item_overdue: () => handleSweepActionItemOverdue(),
   sweep_clarification_ageing: () => handleSweepClarificationAgeing(),
   sweep_delivery_timeout: () => handleSweepDeliveryTimeout(),
+  sweep_meeting_ingestion_sla: () => handleSweepMeetingIngestionSla(),
   embed_object: (payload) => handleEmbedObject(payload as JobPayloadMap["embed_object"]),
   retention_purge: () => handleRetentionPurge(),
 };

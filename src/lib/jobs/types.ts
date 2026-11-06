@@ -10,6 +10,7 @@ export type JobType =
   | "sweep_action_item_overdue"
   | "sweep_clarification_ageing"
   | "sweep_delivery_timeout"
+  | "sweep_meeting_ingestion_sla"
   | "promote_provisional_decisions"
   | "retention_purge";
 
@@ -24,6 +25,7 @@ export interface JobPayloadMap {
   sweep_action_item_overdue: Record<string, never>;
   sweep_clarification_ageing: Record<string, never>;
   sweep_delivery_timeout: Record<string, never>;
+  sweep_meeting_ingestion_sla: Record<string, never>;
   promote_provisional_decisions: { projectId: string; interactionId: string; minutesId: string };
   retention_purge: Record<string, never>;
 }
