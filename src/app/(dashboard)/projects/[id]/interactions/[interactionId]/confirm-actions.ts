@@ -194,6 +194,12 @@ export async function resolveContradiction(projectId: string, interactionId: str
  * them first (earliest created_at) — the result can still only point to
  * one source utterance, same structural limit as every committed
  * decision/action_item/clarification row downstream.
+ *
+ * Takes FormData via a real <form action> submission (MergeCandidatesPanel
+ * renders the hidden candidate_ids inputs from its own selection state,
+ * inside one real <form>) rather than being called directly as a plain
+ * async function from client code — kept consistent with every other
+ * action in this file, which all go through a real form submission.
  */
 export async function mergeCandidates(projectId: string, interactionId: string, formData: FormData) {
   const candidateIds = formData.getAll("candidate_ids").map(String).filter(Boolean);

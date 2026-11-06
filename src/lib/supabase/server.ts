@@ -30,6 +30,16 @@ export async function getSupabaseServerClient() {
           }
         },
       },
+      global: {
+        // Next.js patches the global fetch to apply its own Data Cache
+        // semantics inside Server Components/Actions, which can reach
+        // supabase-js's internal PostgREST/Auth calls too. Force no-store
+        // explicitly rather than relying on `export const dynamic =
+        // "force-dynamic"` to propagate into every library call this
+        // client makes — defensive hardening against stale reads, not a
+        // guarantee against every possible caching path.
+        fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+      },
     }
   );
 }
