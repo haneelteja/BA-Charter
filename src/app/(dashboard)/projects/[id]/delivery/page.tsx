@@ -8,6 +8,7 @@ import {
   markDeliveryInTransit,
   reorderDeliveryPartner,
   toggleDeliveryPartnerActive,
+  updateDeliveryPartnerSla,
 } from "./actions";
 import { Badge, BackLink, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
 
@@ -94,6 +95,7 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
   const toggleActiveForProject = toggleDeliveryPartnerActive.bind(null, projectId);
   const reorderForProject = reorderDeliveryPartner.bind(null, projectId);
   const deleteForProject = deleteDeliveryPartner.bind(null, projectId);
+  const updateSlaForProject = updateDeliveryPartnerSla.bind(null, projectId);
   const createDeliveryForProject = createDelivery.bind(null, projectId);
   const markInTransitForProject = markDeliveryInTransit.bind(null, projectId);
   const markDeliveredForProject = markDeliveryDelivered.bind(null, projectId);
@@ -120,12 +122,13 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
         <h2 className="text-sm font-semibold">Partners (priority order)</h2>
         <p className="mt-1 text-xs text-muted">
           A new delivery is assigned to partner #1. If a partner declines or fails it, the delivery falls back to the
-          next active partner in this order.
+          next active partner in this order. Set an SLA on a partner to fall back automatically if they haven&apos;t
+          resolved it in time — leave it blank for manual-only fallback.
         </p>
         <ul className="mt-3 flex flex-col gap-2">
           {(partners ?? []).map((p, index) => (
             <li key={p.delivery_partner_id}>
-              <Card className="flex items-center justify-between gap-2">
+              <Card className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">
                     {index + 1}
@@ -137,6 +140,25 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
                     <p className="text-xs text-muted">
                       {[p.contact_name, p.contact_email, p.contact_phone].filter(Boolean).join(" · ") || "No contact info"}
                     </p>
+                    <form action={updateSlaForProject} className="mt-1.5 flex items-center gap-1.5">
+                      <input type="hidden" name="delivery_partner_id" value={p.delivery_partner_id} />
+                      <label htmlFor={`sla-${p.delivery_partner_id}`} className="text-xs text-muted">
+                        SLA (hours before auto fallback):
+                      </label>
+                      <Input
+                        id={`sla-${p.delivery_partner_id}`}
+                        name="sla_hours"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        defaultValue={p.sla_hours ?? ""}
+                        placeholder="Off"
+                        className="h-7 w-20 py-1 text-xs"
+                      />
+                      <button type="submit" className="text-xs text-indigo-600 hover:underline dark:text-indigo-400">
+                        Save
+                      </button>
+                    </form>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -198,6 +220,16 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
               </Field>
               <Field label="Contact phone" htmlFor="contact_phone">
                 <Input id="contact_phone" name="contact_phone" placeholder="Contact phone" />
+              </Field>
+              <Field label="SLA hours (optional)" htmlFor="sla_hours">
+                <Input
+                  id="sla_hours"
+                  name="sla_hours"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  placeholder="Leave blank for no automatic fallback"
+                />
               </Field>
               <Button type="submit" size="sm" className="w-fit">
                 Add partner

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
+import { assignNextPartner } from "@/lib/delivery/assignNextPartner";
 
 async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
   const { data: auth } = await supabase.auth.getUser();
@@ -12,60 +13,12 @@ async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServer
   return auth.user;
 }
 
-/** Assigns the next active partner (by priority_order) after `afterSequence`, or marks the delivery Failed if none remain. */
-async function assignNextPartner(
-  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>,
-  projectId: string,
-  deliveryId: string,
-  afterSequence: number
-) {
-  const { data: partners, error } = await supabase
-    .from("delivery_partner")
-    .select("delivery_partner_id")
-    .eq("project_id", projectId)
-    .eq("is_active", true)
-    .order("priority_order", { ascending: true });
-  if (error) throw new Error(`Failed to load delivery partners: ${error.message}`);
-
-  const next = (partners ?? [])[afterSequence];
-  const nowIso = new Date().toISOString();
-
-  if (!next) {
-    const { error: failError } = await supabase
-      .from("delivery")
-      .update({ status: "Failed", current_partner_id: null, failed_at: nowIso })
-      .eq("delivery_id", deliveryId);
-    if (failError) throw new Error(`Failed to mark delivery failed: ${failError.message}`);
-    return;
-  }
-
-  const sequenceNo = afterSequence + 1;
-  const { error: attemptError } = await supabase.from("delivery_attempt").insert({
-    delivery_id: deliveryId,
-    delivery_partner_id: next.delivery_partner_id,
-    sequence_no: sequenceNo,
-    status: "Assigned",
-    assigned_at: nowIso,
-  });
-  if (attemptError) throw new Error(`Failed to create delivery attempt: ${attemptError.message}`);
-
-  const { error: updateError } = await supabase
-    .from("delivery")
-    .update({
-      status: "Assigned",
-      current_partner_id: next.delivery_partner_id,
-      attempt_sequence: sequenceNo,
-      assigned_at: nowIso,
-    })
-    .eq("delivery_id", deliveryId);
-  if (updateError) throw new Error(`Failed to update delivery: ${updateError.message}`);
-}
-
 export async function createDeliveryPartner(projectId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const contactName = String(formData.get("contact_name") ?? "").trim();
   const contactEmail = String(formData.get("contact_email") ?? "").trim();
   const contactPhone = String(formData.get("contact_phone") ?? "").trim();
+  const slaHoursRaw = String(formData.get("sla_hours") ?? "").trim();
 
   if (!name) {
     throw new Error("Partner name is required.");
@@ -85,9 +38,27 @@ export async function createDeliveryPartner(projectId: string, formData: FormDat
     contact_name: contactName || null,
     contact_email: contactEmail || null,
     contact_phone: contactPhone || null,
+    sla_hours: slaHoursRaw ? Number(slaHoursRaw) : null,
     priority_order: (count ?? 0) + 1,
   });
   if (error) throw new Error(`Failed to create delivery partner: ${error.message}`);
+
+  revalidatePath(`/projects/${projectId}/delivery`);
+}
+
+/** Updates just the SLA threshold — null clears it (automatic timeout off, manual decline still always works). */
+export async function updateDeliveryPartnerSla(projectId: string, formData: FormData) {
+  const partnerId = String(formData.get("delivery_partner_id") ?? "");
+  const slaHoursRaw = String(formData.get("sla_hours") ?? "").trim();
+
+  const supabase = await getSupabaseServerClient();
+  await requireUser(supabase);
+
+  const { error } = await supabase
+    .from("delivery_partner")
+    .update({ sla_hours: slaHoursRaw ? Number(slaHoursRaw) : null })
+    .eq("delivery_partner_id", partnerId);
+  if (error) throw new Error(`Failed to update SLA: ${error.message}`);
 
   revalidatePath(`/projects/${projectId}/delivery`);
 }

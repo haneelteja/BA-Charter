@@ -585,11 +585,20 @@ already exist elsewhere in the app under different names.
   it actually handled, not just deliveries that ended with it).
 - Fallback routing: "Partner declined / failed" on the delivery's current
   attempt advances to the next active partner by `priority_order`, or marks
-  the delivery Failed if none remain. **Deferred**: this is a manual
-  trigger only — no automatic SLA-timeout fallback (would need a per-partner
-  threshold and a sweep job, matching the existing
-  `sweepActionItemOverdue`/`sweepClarificationAgeing` pattern); revisit if
-  real usage needs it.
+  the delivery Failed if none remain. Shared between that manual action and
+  the automatic path below via `src/lib/delivery/assignNextPartner.ts`, so
+  both land on identical state.
+- Automatic SLA-timeout fallback (migration `0017`): `delivery_partner.sla_hours`
+  is per-partner (one vendor might promise 2-hour pickup, another next-day),
+  null means manual-only. `sweep_delivery_timeout`
+  (`src/jobs/handlers/sweepDeliveryTimeout.ts`), wired into the same daily
+  cron as the other sweeps, declines any attempt whose partner has an
+  `sla_hours` set and `assigned_at + sla_hours` has passed, then falls back
+  through `assignNextPartner` — same outcome as a human clicking decline,
+  logged as an `Escalated` audit event. No extra idempotency flag needed:
+  falling back changes `assigned_at` to the new attempt's timestamp, so the
+  same delivery won't match the sweep's own query again until that new
+  attempt's own SLA elapses.
 - Per-partner analytics on the same page: volume handled (attempt count),
   success rate (Delivered ÷ (Delivered + Declined) among resolved
   attempts), average turnaround (resolved_at − assigned_at on Delivered
