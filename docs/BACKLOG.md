@@ -456,33 +456,58 @@ cheaply (e.g. consistent owner/status columns).
 
 ---
 
-## EPIC 14 — Agile Studio Integration — 🟡 stub implemented (Phase 5)
+## EPIC 14 — Agile Studio Integration — 🟡 stub + unverified real client (Phase 5)
 
 **Why:** The requirements assume this is a same-platform object reference; in
 the standalone build it's a real external integration.
 **Traces to:** §6 Outbound, §8 rule 6–7.
 
-- ✅ Stub client: same interface the real REST client will implement,
-  mocked responses (`src/lib/agileStudio/client.ts`) — built during Phase 5
-  rather than waiting for Phase 6, so EPIC 8/11 Publish steps weren't
-  blocked (resolved decision, `EXECUTION_PLAN.md` §3.E). EPIC 8 and EPIC 11
-  publish actions both call it and store the returned reference on
-  `agile_studio_ref`, verified against the live database.
-- Real REST client against Pega Infinity's Agile Studio APIs — OAuth2
-  client-credentials, matching the pattern already built and removed earlier
-  in this project (`src/lib/pega/*` before the Pega pivot) — can be
-  resurrected almost as-is once an instance exists — **M**
-- Create/update epic, create/update story — **M**
-- Read status back (sprint, story points, status) for display — **M**
-- Ownership boundary enforced in code, not just convention: story
-  status/sprint/points are never written by this platform (§8 rule 6);
-  description/acceptance criteria/business context are never overwritten by a
-  read-back sync (§8 rule 7) — **S**
-- Backlog import (used by EPIC 1 Seed stage) — **M**
+- ✅ Stub client: same interface the real REST client implements, mocked
+  responses (`src/lib/agileStudio/client.ts`) — built during Phase 5 rather
+  than waiting for Phase 6, so EPIC 8/11 Publish steps weren't blocked
+  (resolved decision, `EXECUTION_PLAN.md` §3.E). EPIC 8 and EPIC 11 publish
+  actions both call it and store the returned reference on
+  `agile_studio_ref`, verified against the live database. Still the
+  default — `getAgileStudioClient()` only switches to the real client once
+  `AGILE_STUDIO_BASE_URL` is set, which it isn't anywhere yet.
+- 🟡 Real REST client, scaffolded but **genuinely unverified** — no Pega
+  Infinity + Agile Studio instance exists to test it against, and none of
+  the git history in this repo has the pre-pivot `src/lib/pega/*` OAuth2
+  code this note used to say could be "resurrected" from (searched; it's
+  not there). Built from scratch instead, in two parts with very different
+  confidence levels:
+  - `src/lib/agileStudio/oauth.ts`: RFC 6749 §4.4 client-credentials grant
+    with HTTP Basic client auth (§2.3.1) — the standard pattern any
+    correctly configured Pega OAuth2 Client Registration speaks, regardless
+    of org. Token caching with expiry, unit-tested with a mocked `fetch`
+    (`oauth.test.ts`) — this part is solid.
+  - `src/lib/agileStudio/restClient.ts`: create/update epic, create/update
+    story against `POST`/`PATCH /api/v1/cases` — matches Pega Platform's
+    documented case-management REST API shape, a reasonable starting point,
+    not a blind guess. The case type names and field names inside each
+    request body (`AgileStudio-Work-Epic`, `Title`, `SourceEpicId`, …) are
+    genuinely org-specific guesses with no way to verify them without a
+    real instance — left env-configurable (`AGILE_STUDIO_EPIC_CASE_TYPE`
+    etc.) specifically so correcting them is a config change, not a code
+    change. Unit-tested for request shape only (`restClient.test.ts`) —
+    that confirms the client sends what it's supposed to, not that a real
+    instance accepts it.
+  - Ownership boundary (§8 rule 6) already enforced in the request bodies
+    themselves: `updateEpic`/`updateStory`'s payloads have no
+    sprint/status/points fields to accidentally include.
+- Read status back (sprint, story points, status) for display — **not
+  built** — needs a real instance's response shape to know what to read.
+- Ownership boundary for read-back (§8 rule 7 — description/acceptance
+  criteria/business context never overwritten by a sync) — **not built**,
+  same reason: no read-back exists yet to bound.
+- Backlog import (used by EPIC 1 Seed stage) — **not built**.
 
-**Depends on:** EPIC 0. Swapping the stub for the real client (remaining
-items above) is deferred until a Pega Infinity + Agile Studio instance
-exists — isolated to this one file, no call-site changes needed elsewhere.
+**Depends on:** EPIC 0. Pointing `getAgileStudioClient()` at a real instance
+is a one-line env var (`AGILE_STUDIO_BASE_URL`) once one exists — but the
+case type/field names in `restClient.ts` will need correcting against
+whatever that instance's actual Agile Studio case types turn out to be,
+and the remaining items above (read-back, backlog import) still need
+building once that real shape is known.
 
 ---
 

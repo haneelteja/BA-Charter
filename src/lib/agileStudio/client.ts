@@ -1,10 +1,13 @@
+import { RealAgileStudioClient } from "./restClient";
+
 /**
  * EPIC 14 slice, built early (stubbed) so EPIC 8/11 Publish steps aren't
  * blocked (EXECUTION_PLAN.md §3.E — no real Pega Infinity + Agile Studio
- * instance exists yet). Same interface a real REST client will implement
- * later (resurrecting the OAuth2 client-credentials pattern from
- * src/lib/pega/* before the Pega pivot) — call sites never change, only
- * this file's internals do.
+ * instance existed yet). restClient.ts now has a real OAuth2
+ * client-credentials REST implementation, not yet verified against an
+ * actual instance (see that file's header) — getAgileStudioClient()
+ * switches to it automatically once AGILE_STUDIO_BASE_URL is configured,
+ * with no call-site changes needed either way.
  */
 export interface AgileStudioClient {
   publishEpic(input: { epicId: string; title: string }): Promise<{ ref: string }>;
@@ -33,5 +36,8 @@ class StubAgileStudioClient implements AgileStudioClient {
 }
 
 export function getAgileStudioClient(): AgileStudioClient {
+  if (process.env.AGILE_STUDIO_BASE_URL) {
+    return new RealAgileStudioClient();
+  }
   return new StubAgileStudioClient();
 }
