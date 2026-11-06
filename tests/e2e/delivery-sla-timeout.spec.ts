@@ -43,7 +43,10 @@ test("a delivery automatically falls back to the next partner once its current p
         { project_id: projectId, name: "Slow Partner", priority_order: 1, sla_hours: 1 },
         { project_id: projectId, name: "Fallback Partner", priority_order: 2 },
       ])
-      .select("delivery_partner_id, name")
+      // PostgREST can only order an insert's returned rows by a column
+      // that's in the select list — priority_order has to be here even
+      // though only delivery_partner_id/name are read below.
+      .select("delivery_partner_id, name, priority_order")
       .order("priority_order", { ascending: true });
     expect(partnersError).toBeNull();
     const slowPartner = partners!.find((p) => p.name === "Slow Partner")!;
