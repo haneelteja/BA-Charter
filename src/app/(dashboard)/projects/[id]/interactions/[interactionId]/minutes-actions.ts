@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { getProjectRole, isLead } from "@/lib/projects/role";
@@ -9,6 +10,8 @@ import { generateMinutesDraft } from "@/lib/ai/minutes";
 import { sendEmail } from "@/lib/email/resend";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
+import { generateAckToken } from "@/lib/minutes/ackToken";
+import { revertMinutesDispute } from "@/lib/minutes/dispute";
 
 type Supa = Awaited<ReturnType<typeof getSupabaseServerClient>>;
 
@@ -172,12 +175,6 @@ export async function approveAndDistribute(
     throw new Error(`Failed to approve minutes: ${approveError.message}`);
   }
 
-  await sendEmail({
-    to: recipients,
-    subject: minutes.subject ?? "Minutes of meeting",
-    html: minutes.body_html ?? "",
-  });
-
   const { error: distributeError } = await supabase
     .from("minutes_document")
     .update({ status: "Distributed", distributed_at: new Date().toISOString() })
@@ -186,11 +183,36 @@ export async function approveAndDistribute(
     throw new Error(`Failed to mark minutes distributed: ${distributeError.message}`);
   }
 
-  const { error: recipientsError } = await supabase.from("minutes_recipient").insert(
-    recipients.map((email) => ({ minutes_id: minutesId, email }))
-  );
+  // Each recipient gets their own unguessable ack/dispute link (EPIC 5),
+  // so each needs its own email with that link baked in rather than one
+  // batched send to every address at once.
+  const headerList = await headers();
+  const origin =
+    headerList.get("origin") ?? `${headerList.get("x-forwarded-proto") ?? "http"}://${headerList.get("host")}`;
+
+  const recipientRows = recipients.map((email) => ({
+    minutes_id: minutesId,
+    email,
+    ack_token: generateAckToken(),
+  }));
+
+  const { error: recipientsError } = await supabase.from("minutes_recipient").insert(recipientRows);
   if (recipientsError) {
     throw new Error(`Failed to record recipients: ${recipientsError.message}`);
+  }
+
+  for (const recipient of recipientRows) {
+    const ackLink = `${origin}/minutes/${recipient.ack_token}`;
+    await sendEmail({
+      to: [recipient.email],
+      subject: minutes.subject ?? "Minutes of meeting",
+      html: `${minutes.body_html ?? ""}
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;" />
+        <p style="font-family:sans-serif;font-size:13px;color:#4b5563;">
+          Please review and acknowledge these minutes, or flag any issues, here:
+          <a href="${ackLink}">${ackLink}</a>
+        </p>`,
+    });
   }
 
   await commitToCharter(supabase, projectId, interactionId, user.id);
@@ -344,52 +366,7 @@ export async function disputeMinutes(projectId: string, interactionId: string, f
   const supabase = await getSupabaseServerClient();
   const user = await requireUser(supabase);
 
-  const { error: minutesError } = await supabase
-    .from("minutes_document")
-    .update({ status: "Disputed", dispute_note: disputeNote })
-    .eq("minutes_id", minutesId);
-  if (minutesError) {
-    throw new Error(`Failed to record dispute: ${minutesError.message}`);
-  }
-
-  const { data: committedDecisions, error: candidatesError } = await supabase
-    .from("extraction_candidate")
-    .select("candidate_id, resulting_object_id")
-    .eq("interaction_id", interactionId)
-    .eq("resulting_object_type", "Decision")
-    .not("resulting_object_id", "is", null);
-
-  if (candidatesError) {
-    throw new Error(`Failed to load committed decisions: ${candidatesError.message}`);
-  }
-
-  const decisionIds = (committedDecisions ?? [])
-    .map((c) => c.resulting_object_id)
-    .filter((id): id is string => id !== null);
-
-  if (decisionIds.length > 0) {
-    await supabase
-      .from("decision")
-      .update({ status: "Candidate" })
-      .in("decision_id", decisionIds)
-      .eq("status", "Provisional");
-
-    await supabase
-      .from("extraction_candidate")
-      .update({ status: "Pending", resulting_object_type: null, resulting_object_id: null, decided_by: null, decided_at: null })
-      .in(
-        "candidate_id",
-        (committedDecisions ?? []).map((c) => c.candidate_id)
-      );
-  }
-
-  const { error: interactionError } = await supabase
-    .from("interaction")
-    .update({ processing_status: "Extracted" })
-    .eq("interaction_id", interactionId);
-  if (interactionError) {
-    throw new Error(`Failed to reopen interaction: ${interactionError.message}`);
-  }
+  const { decisionIds } = await revertMinutesDispute(supabase, { minutesId, interactionId, disputeNote });
 
   await logAuditEvent(supabase, {
     projectId,

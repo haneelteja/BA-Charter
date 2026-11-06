@@ -190,10 +190,9 @@ primary day-to-day workflow.
     (`promote_provisional_decisions`, `run_after` = now + `mom_ack_window_hours`)
   - Dispute handling (`disputeMinutes`): reverts affected decisions to
     `Candidate`, resets their `extraction_candidate` rows to `Pending`,
-    reopens the interaction at `Extracted` (§8 rule 4). **Deferred**: dispute
-    is an authenticated in-app action for any project member, not a public
-    tokenized link for external recipients — building real unauthenticated
-    ack/dispute links is its own scope.
+    reopens the interaction at `Extracted` (§8 rule 4). Also reachable via
+    the public tokenized link below — both share
+    `src/lib/minutes/dispute.ts` so they land on identical state.
   - Risk / ChangeSignal candidates have no persistent home in the schema —
     they stay as Accepted `extraction_candidate` rows for traceability only.
 - Case-level SLA timer/alert (15-minute target) — **not built**; the job
@@ -469,12 +468,16 @@ exists — isolated to this one file, no call-site changes needed elsewhere.
   `EXECUTION_PLAN.md` §3.F) — **S**
 - Templates: minutes of meeting, clarification request, change notification — **M**
 - Recipient tracking for minutes: `minutes_recipient` rows are written at
-  distribution time (who was sent what). **Not built**: the
-  acknowledgement link/webhook that would set `acknowledged_at` — same
-  deferral already noted under EPIC 5 (a real unauthenticated ack link for
-  external recipients is its own scope). Auto-promotion to `Confirmed`
-  currently runs purely on the `mom_ack_window_hours` timer, independent of
-  whether anyone actually acknowledged — **M**, remaining
+  distribution time (who was sent what), each with its own unguessable
+  `ack_token` (migration `0018`). Each recipient's email carries a link to
+  `/minutes/[token]` — a public, unauthenticated page (no Supabase session;
+  reads/writes go through the service-role client, scoped by the token
+  alone) where they can acknowledge (sets `acknowledged_at`) or dispute
+  (reuses the EPIC 5 dispute logic) without an app account. Auto-promotion
+  to `Confirmed` still runs purely on the `mom_ack_window_hours` timer —
+  acknowledgement is tracked and visible, not a gate on promotion; a real
+  dispute still is, via the shared revert logic, same as the authenticated
+  path.
 
 **Depends on:** EPIC 0.
 
