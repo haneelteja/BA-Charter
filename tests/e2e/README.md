@@ -1,10 +1,18 @@
 # E2E tests
 
 Real browser tests (Playwright) against the real Supabase project, driving
-actual sign-up/sign-in/password-reset/magic-link flows and one project/
-charter CRUD path. Every test creates its own throwaway user (and project,
-where relevant) and deletes it in a `finally`/cleanup step — none of them
-touch the shared dev account or real project data.
+actual sign-up/sign-in/password-reset/magic-link flows, the core project/
+charter CRUD path, and the merge/split, delivery-partner, minutes-ack, and
+SLA-sweep features built on top of it. Every test creates its own throwaway
+user (and project, where relevant) and deletes it in a `finally`/cleanup
+step — none of them touch the shared dev account or real project data.
+
+`accessibility.spec.ts` is a bit different: it drives the same real
+Chromium through every major page (seeded with representative data) and
+runs `axe-core` (via `@axe-core/playwright`) against each one for WCAG 2.1
+A/AA violations — automated coverage, not a substitute for a manual
+screen-reader walkthrough. See BACKLOG.md EPIC 16 for what that does and
+doesn't cover.
 
 ## Why these aren't in the required CI gate
 

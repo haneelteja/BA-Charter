@@ -96,6 +96,7 @@ export default async function EpicDetailPage({
           <form action={updateForEpic} className="flex flex-col gap-2">
             <input
               name="title"
+              aria-label="Title"
               defaultValue={epic.title}
               required
               className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
@@ -156,11 +157,11 @@ export default async function EpicDetailPage({
 
       {epic.status === "Draft" && (
         <form action={linkForEpic} className="mt-3 flex items-center gap-2">
-          <Select name="target_type" className="w-40">
+          <Select name="target_type" aria-label="Link type" className="w-40">
             <option value="Decision">Decision</option>
             <option value="KnowledgeNode">Charter entry</option>
           </Select>
-          <Select name="target_id" className="flex-1">
+          <Select name="target_id" aria-label="Link target" className="flex-1">
             <optgroup label="Confirmed decisions">
               {candidateDecisions?.map((d) => (
                 <option key={d.decision_id} value={d.decision_id}>

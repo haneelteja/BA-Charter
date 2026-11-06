@@ -196,14 +196,14 @@ export default async function StoryDetailPage({
       </ul>
       {isEditable && (otherStories?.length ?? 0) > 0 && (
         <form action={addDependencyForStory} className="mt-3 flex items-center gap-2">
-          <Select name="depends_on_story_id" className="flex-1">
+          <Select name="depends_on_story_id" aria-label="Depends on story" className="flex-1">
             {otherStories?.map((s) => (
               <option key={s.user_story_id} value={s.user_story_id}>
                 {s.title}
               </option>
             ))}
           </Select>
-          <Select name="dependency_type" className="w-40">
+          <Select name="dependency_type" aria-label="Dependency type" className="w-40">
             <option value="BlockedBy">Blocked by</option>
             <option value="RelatesTo">Relates to</option>
             <option value="Duplicates">Duplicates</option>
@@ -262,7 +262,7 @@ export default async function StoryDetailPage({
           )}
           {story.status === "Approved" && (
             <form action={linkDecisionForStory} className="mt-3 flex items-center gap-2">
-              <Select name="decision_id" className="flex-1">
+              <Select name="decision_id" aria-label="Decision to link" className="flex-1">
                 {candidateDecisions?.map((d) => (
                   <option key={d.decision_id} value={d.decision_id}>
                     {d.statement.slice(0, 60)}

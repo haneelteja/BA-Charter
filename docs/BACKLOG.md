@@ -556,11 +556,30 @@ with its own line items so it's plannable and demonstrable rather than vague.
 - Accessibility: added `role="alert"` / `role="status" aria-live="polite"`
   to every dynamic result/error panel (StoryChecker, StoryCheckPanel,
   AnalysisPanel, BrainstormPanel) so screen readers announce outcomes
-  without a page reload. A full WCAG 2.1 AA pass (contrast ratios, focus
-  order, label associations across every form) was **not** done — it
-  needs actual browser/screen-reader testing this environment can't
-  perform, and claiming it here would be describing work not done. Flagged
-  as a real open item, not silently dropped.
+  without a page reload.
+  **Automated WCAG 2.1 A/AA scan, done later** (`tests/e2e/accessibility.spec.ts`):
+  this environment has no screen reader to drive a manual AT walkthrough,
+  but it does have a real Chromium via Playwright, which is enough to run
+  axe-core (the same engine behind Lighthouse/Deque's own tooling)
+  against every major authenticated page (seeded with one of nearly every
+  entity type, so empty-state markup doesn't hide real structural issues)
+  plus the public sign-in/forgot-password/reset-password/minutes-ack
+  pages. Found and fixed 7 real violations on the first run: an empty-state
+  `<div>` as a direct, non-`<li>` child of a `<ul>` (delivery partners); four
+  unlabeled form controls — a date input, a title input, and three
+  `<select>`s across clarifications/epics (and the same pattern proactively
+  fixed on the story detail page's status-gated link forms, which the seed
+  data's Draft-status story didn't happen to trigger); and one color-contrast
+  miss (4.46:1 vs 4.5:1 required) on a red text button sitting directly on
+  `--background` instead of inside a `<Card>` (`--surface`) like every other
+  red text button in the app — darkened to `red-700` for that one case.
+  Zero violations on re-scan. **What this genuinely doesn't cover**: real
+  screen reader behavior (NVDA/JAWS/VoiceOver announcement quality — ARIA
+  correctness is necessary but not sufficient for that), true keyboard-only
+  walkthroughs by a human, and cognitive/plain-language review — axe-core
+  catches what's mechanically detectable, not the full WCAG 2.1 AA
+  standard. That gap is real and is for a human with actual AT to close,
+  not something to claim done here.
 - Workspace load-time budget: existing indexes (`idx_action_item_owner_status`,
   `idx_clarification_chasing_status`, etc.) already cover the per-user
   filters the workspace queries use; RLS narrows every query to the

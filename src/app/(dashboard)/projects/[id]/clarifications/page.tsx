@@ -106,7 +106,7 @@ export default async function ClarificationsPage({
                           <form action={askForProject} className="flex items-center gap-1.5">
                             <input type="hidden" name="clarification_id" value={c.clarification_id} />
                             <Input name="asked_channel" placeholder="Channel" className="h-8 w-20 py-1 text-xs" />
-                            <Input name="asked_on" type="date" className="h-8 py-1 text-xs" />
+                            <Input name="asked_on" type="date" aria-label="Asked on" className="h-8 py-1 text-xs" />
                             <Button type="submit" size="sm">
                               Mark asked
                             </Button>

@@ -333,7 +333,11 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
               </Card>
             </li>
           ))}
-          {(deliveries ?? []).length === 0 && <Card className="text-sm text-muted">No deliveries yet.</Card>}
+          {(deliveries ?? []).length === 0 && (
+            <li>
+              <Card className="text-sm text-muted">No deliveries yet.</Card>
+            </li>
+          )}
         </ul>
       </section>
     </main>

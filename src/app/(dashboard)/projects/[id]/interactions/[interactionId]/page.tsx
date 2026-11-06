@@ -162,7 +162,7 @@ export default async function InteractionDetailPage({
           )}
           {userIsLead && (
             <form action={purgeForInteraction}>
-              <button type="submit" className="text-xs text-red-600 hover:underline dark:text-red-400">
+              <button type="submit" className="text-xs text-red-700 hover:underline dark:text-red-400">
                 Purge now
               </button>
             </form>
@@ -255,7 +255,7 @@ export default async function InteractionDetailPage({
                   <>
                     <form action={acceptForInteraction} className="mt-2 flex flex-col gap-2">
                       <input type="hidden" name="candidate_id" value={c.candidate_id} />
-                      <Textarea name="statement" defaultValue={c.statement} rows={2} className="text-xs" />
+                      <Textarea name="statement" aria-label="Statement" defaultValue={c.statement} rows={2} className="text-xs" />
                       {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (
                         <Input name="suggested_owner" defaultValue={c.suggested_owner ?? ""} placeholder="Owner name" className="text-xs" />
                       )}

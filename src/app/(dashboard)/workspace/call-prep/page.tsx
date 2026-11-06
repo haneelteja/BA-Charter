@@ -62,7 +62,7 @@ export default async function CallPrepPage({
       <PageHeader title="Call preparation" />
 
       <form method="GET" className="mt-6 flex items-center gap-2">
-        <Select name="stakeholder_id" defaultValue={stakeholderId ?? ""} className="flex-1">
+        <Select name="stakeholder_id" aria-label="Stakeholder" defaultValue={stakeholderId ?? ""} className="flex-1">
           <option value="">Select a stakeholder…</option>
           {(stakeholders ?? []).map((s) => (
             <option key={s.stakeholder_id} value={s.stakeholder_id}>
