@@ -40,19 +40,6 @@ export async function getSupabaseServerClient() {
         // guarantee against every possible caching path.
         fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
       },
-      auth: {
-        // This client is what calls resetPasswordForEmail/signInWithOtp/
-        // signUp, and its flowType determines the style of link Supabase
-        // puts in the resulting email. @supabase/ssr defaults to PKCE,
-        // which embeds a `?code=` param that can only be exchanged for a
-        // session in the same browser/device that requested it (the
-        // code_verifier lives in that browser's own cookies) — broken for
-        // the common case of opening the email link somewhere else.
-        // Implicit flow matches the browser client (src/lib/supabase/
-        // client.ts) and delivers the session as a hash fragment instead,
-        // which works regardless of where the link is opened.
-        flowType: "implicit",
-      },
     }
   );
 }

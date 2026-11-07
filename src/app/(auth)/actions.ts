@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAuthEmailClient } from "@/lib/supabase/authEmailClient";
 import { getFailedPasswordRules, isValidEmail } from "@/lib/validation";
 
 async function getEmailRedirectTo() {
@@ -60,7 +61,7 @@ export async function signUpWithPassword(formData: FormData) {
     errorRedirect("Passwords don't match.", { form: "signup" });
   }
 
-  const supabase = await getSupabaseServerClient();
+  const supabase = getSupabaseAuthEmailClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -80,7 +81,7 @@ export async function signUpWithPassword(formData: FormData) {
 export async function signInWithMagicLink(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
 
-  const supabase = await getSupabaseServerClient();
+  const supabase = getSupabaseAuthEmailClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -114,7 +115,7 @@ export async function requestPasswordReset(formData: FormData) {
     errorRedirect("Enter a valid email address.", { path: "/forgot-password" });
   }
 
-  const supabase = await getSupabaseServerClient();
+  const supabase = getSupabaseAuthEmailClient();
   const headerList = await headers();
   const origin =
     headerList.get("origin") ??
