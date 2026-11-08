@@ -1,8 +1,8 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md";
+export type Variant = "primary" | "secondary" | "ghost" | "danger";
+export type Size = "sm" | "md";
 
 const VARIANTS: Record<Variant, string> = {
   primary:

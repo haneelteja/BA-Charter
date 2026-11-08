@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requestPasswordReset } from "../actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Card, Field, Input, SubmitButton } from "@/components/ui";
 
 export default async function ForgotPasswordPage({
   searchParams,
@@ -37,9 +37,9 @@ export default async function ForgotPasswordPage({
             <Field label="Email" htmlFor="forgot-email">
               <Input id="forgot-email" name="email" type="email" placeholder="you@company.com" required />
             </Field>
-            <Button type="submit" variant="primary">
+            <SubmitButton variant="primary" pendingLabel="Sending…">
               Send reset link
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
 

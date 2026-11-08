@@ -1,4 +1,5 @@
 export { Button } from "./Button";
+export { SubmitButton } from "./SubmitButton";
 export { Input, Textarea, Select } from "./Input";
 export { PasswordInput } from "./PasswordInput";
 export { PasswordStrengthField } from "./PasswordStrengthField";

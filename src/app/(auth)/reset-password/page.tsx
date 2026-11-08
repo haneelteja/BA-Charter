@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { updatePassword } from "../actions";
-import { Button, Card, PasswordInput, PasswordStrengthField } from "@/components/ui";
+import { Card, PasswordInput, PasswordStrengthField, SubmitButton } from "@/components/ui";
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -47,9 +47,9 @@ export default async function ResetPasswordPage({
               </label>
               <PasswordInput id="reset-confirm-password" name="confirm_password" placeholder="Confirm new password" required />
             </div>
-            <Button type="submit" variant="primary">
+            <SubmitButton variant="primary" pendingLabel="Updating…">
               Update password
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       </div>

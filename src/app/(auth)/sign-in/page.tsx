@@ -4,7 +4,7 @@ import {
   signInWithMagicLink,
   signUpWithPassword,
 } from "../actions";
-import { Button, Card, Field, Input, PasswordInput, PasswordStrengthField } from "@/components/ui";
+import { Card, Field, Input, PasswordInput, PasswordStrengthField, SubmitButton } from "@/components/ui";
 
 export default async function SignInPage({
   searchParams,
@@ -42,9 +42,9 @@ export default async function SignInPage({
             <Field label="Email" htmlFor="magic-email">
               <Input id="magic-email" name="email" type="email" placeholder="you@company.com" required />
             </Field>
-            <Button type="submit" variant="primary">
+            <SubmitButton variant="primary" pendingLabel="Sending…">
               Send magic link
-            </Button>
+            </SubmitButton>
           </form>
 
           <div className="flex items-center gap-3">
@@ -69,9 +69,9 @@ export default async function SignInPage({
             <Field label="Password" htmlFor="password-password">
               <PasswordInput id="password-password" name="password" placeholder="Password" required />
             </Field>
-            <Button type="submit" variant="secondary">
+            <SubmitButton variant="secondary" pendingLabel="Signing in…">
               Sign in
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
 
@@ -91,9 +91,9 @@ export default async function SignInPage({
               <Field label="Confirm password" htmlFor="signup-confirm-password">
                 <PasswordInput id="signup-confirm-password" name="confirm_password" placeholder="Confirm password" required minLength={8} />
               </Field>
-              <Button type="submit" variant="secondary">
+              <SubmitButton variant="secondary" pendingLabel="Creating account…">
                 Create account
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         </details>
