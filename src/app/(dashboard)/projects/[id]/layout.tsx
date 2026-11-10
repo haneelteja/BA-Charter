@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui";
 import { ProjectSidebarNav, type ProjectNavItem } from "./ProjectSidebarNav";
+import { RightPanel } from "./RightPanel";
 
 const STATUS_TONE: Record<string, "green" | "indigo" | "amber" | "neutral"> = {
   Active: "green",
@@ -15,7 +16,7 @@ const NAV_ITEMS: ProjectNavItem[] = [
   { href: "", label: "Chat", hint: "Ask about this project" },
   { href: "charter", label: "Charter", hint: "Knowledge model" },
   { href: "interactions", label: "Interactions", hint: "Capture & extraction" },
-  { href: "action-items", label: "Action items", hint: "Follow-ups" },
+  { href: "minutes", label: "Minutes of meetings", hint: "Meeting records" },
   { href: "clarifications", label: "Clarifications", hint: "Open questions" },
   { href: "epics", label: "Epics", hint: "Delivery scope" },
   { href: "stories", label: "Stories", hint: "User stories" },
@@ -51,7 +52,7 @@ export default async function ProjectLayout({
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl overflow-hidden">
+    <div className="mx-auto flex h-full max-w-[96rem] overflow-hidden">
       <aside className="scrollbar-thin h-full w-64 shrink-0 overflow-y-auto border-r border-surface-border px-4 py-6">
         <div className="px-1">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -65,6 +66,9 @@ export default async function ProjectLayout({
         </div>
       </aside>
       <main className="scrollbar-thin h-full min-w-0 flex-1 overflow-y-auto">{children}</main>
+      <aside className="scrollbar-thin hidden h-full w-80 shrink-0 overflow-y-auto border-l border-surface-border lg:block">
+        <RightPanel projectId={projectId} />
+      </aside>
     </div>
   );
 }

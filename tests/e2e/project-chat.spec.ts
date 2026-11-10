@@ -66,10 +66,16 @@ test("sidebar navigation reaches every project tab", async ({ page }) => {
     ).toBeVisible();
     await expect(page.getByPlaceholder("Ask about this project…")).toBeVisible();
 
+    // Action items moved out of the left nav into the always-visible right
+    // panel, alongside a recent-activity feed fed by audit_event.
+    await expect(page.getByRole("heading", { name: "Action items" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Recent activity" })).toBeVisible();
+
     // Scoped to <aside nav> specifically — the dashboard header above it
     // has its own <nav> with a same-named "Settings" link to a different,
     // global page.
     const nav = page.locator("aside nav");
+    await expect(nav.getByText("Action items", { exact: true })).toHaveCount(0);
 
     // Each toHaveURL below gets an explicit timeout well past the
     // default 5s — Turbopack dev-mode compiles each route on its first
@@ -86,10 +92,17 @@ test("sidebar navigation reaches every project tab", async ({ page }) => {
     await expect(page).toHaveURL(`/projects/${projectId}/search`, { timeout: 20000 });
     await expect(page.getByRole("heading", { name: "Search" })).toBeVisible();
 
+    await nav.getByText("Minutes of meetings", { exact: true }).click();
+    await expect(page).toHaveURL(`/projects/${projectId}/minutes`, { timeout: 20000 });
+    await expect(page.getByRole("heading", { name: "Minutes of meetings" })).toBeVisible();
+
     await nav.getByText("Members", { exact: true }).click();
     await expect(page).toHaveURL(`/projects/${projectId}/members`, { timeout: 20000 });
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
-    await expect(page.getByText(email)).toBeVisible();
+    // Scoped to <main> — the right-hand panel's "Recent activity" feed also
+    // names this user (they created the project), so the bare email is
+    // ambiguous across the full page.
+    await expect(page.locator("main").getByText(email)).toBeVisible();
 
     await nav.getByText("Settings", { exact: true }).click();
     await expect(page).toHaveURL(`/projects/${projectId}/settings`, { timeout: 20000 });
