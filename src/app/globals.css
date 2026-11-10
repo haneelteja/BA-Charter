@@ -46,3 +46,36 @@ body {
   outline: 2px solid var(--color-indigo-500);
   outline-offset: 2px;
 }
+
+/*
+ * Several panes now scroll independently of the page itself (the project
+ * sidebar, the chat message list) rather than the whole document scrolling
+ * as one — see projects/[id]/layout.tsx. Windows' default scrollbar for an
+ * `overflow-y-auto` box is a wide, boxy, arrowed control that visually reads
+ * as a stray column splitting the layout rather than part of it. This gives
+ * every such internally-scrolling pane a slim, theme-colored scrollbar
+ * instead, consistent across Firefox (scrollbar-width/-color) and
+ * Chromium/Safari (::-webkit-scrollbar).
+ */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-border) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--surface-border);
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
+}

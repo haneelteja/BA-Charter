@@ -59,7 +59,7 @@ export function ChatPanel({
           .
         </p>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <p className="mt-10 text-center text-sm text-muted">
             Ask anything about this project — the charter, interactions, epics, stories,
