@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createUserStory } from "./actions";
-import { Badge, Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Card, Field, Input, PageHeader, Select, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -80,9 +80,9 @@ export default async function StoriesPage({
             <Field label="End point" htmlFor="end_point">
               <Input id="end_point" name="end_point" placeholder="End point" />
             </Field>
-            <Button type="submit" variant="primary" className="w-fit">
+            <SubmitButton variant="primary" className="w-fit" pendingLabel="Creating…">
               Create
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       </details>

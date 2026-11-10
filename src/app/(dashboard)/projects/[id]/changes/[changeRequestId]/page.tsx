@@ -14,7 +14,7 @@ import {
 } from "../actions";
 import { AnalysisPanel } from "./AnalysisPanel";
 import { BrainstormPanel } from "./BrainstormPanel";
-import { BackLink, Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { BackLink, Badge, Card, Field, Input, PageHeader, Select, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -133,9 +133,9 @@ export default async function ChangeRequestDetailPage({
                 <option value="Critical">Critical</option>
               </Select>
             </Field>
-            <Button type="submit" size="sm" className="w-fit">
+            <SubmitButton size="sm" className="w-fit" pendingLabel="Saving…">
               Save
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       )}
@@ -169,15 +169,15 @@ export default async function ChangeRequestDetailPage({
                   {!f.ba_disposition && changeRequest.status === "Analysing" && (
                     <form action={disposeForChange} className="mt-2 flex gap-2">
                       <input type="hidden" name="finding_id" value={f.finding_id} />
-                      <Button type="submit" name="disposition" value="Accepted" size="sm">
+                      <SubmitButton name="disposition" value="Accepted" size="sm" pendingLabel="Saving…">
                         Accept
-                      </Button>
-                      <Button type="submit" name="disposition" value="Dismissed" size="sm">
+                      </SubmitButton>
+                      <SubmitButton name="disposition" value="Dismissed" size="sm" pendingLabel="Saving…">
                         Dismiss
-                      </Button>
-                      <Button type="submit" name="disposition" value="RaisedAsClarification" size="sm">
+                      </SubmitButton>
+                      <SubmitButton name="disposition" value="RaisedAsClarification" size="sm" pendingLabel="Raising…">
                         Raise as clarification
-                      </Button>
+                      </SubmitButton>
                     </form>
                   )}
                 </Card>
@@ -189,9 +189,9 @@ export default async function ChangeRequestDetailPage({
 
       {changeRequest.status === "Analysing" && (
         <form action={moveToBrainstormForChange} className="mt-4">
-          <Button type="submit" variant="primary">
+          <SubmitButton variant="primary" pendingLabel="Proceeding…">
             Proceed to brainstorm
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -224,9 +224,9 @@ export default async function ChangeRequestDetailPage({
 
       {changeRequest.status === "Brainstorm" && (
         <form action={moveToDecideForChange} className="mt-4">
-          <Button type="submit" variant="primary">
+          <SubmitButton variant="primary" pendingLabel="Proceeding…">
             Proceed to decide
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -243,15 +243,15 @@ export default async function ChangeRequestDetailPage({
           <form action={decideForChange} className="mt-3 flex flex-col gap-2">
             <Textarea name="rationale" placeholder="Decision rationale" required rows={2} />
             <div className="flex gap-2">
-              <Button type="submit" name="outcome" value="Accepted" variant="primary" size="sm">
+              <SubmitButton name="outcome" value="Accepted" variant="primary" size="sm" pendingLabel="Saving…">
                 Accept
-              </Button>
-              <Button type="submit" name="outcome" value="Deferred" size="sm">
+              </SubmitButton>
+              <SubmitButton name="outcome" value="Deferred" size="sm" pendingLabel="Saving…">
                 Defer to release
-              </Button>
-              <Button type="submit" name="outcome" value="Rejected" variant="danger" size="sm">
+              </SubmitButton>
+              <SubmitButton name="outcome" value="Rejected" variant="danger" size="sm" pendingLabel="Saving…">
                 Reject
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </section>
@@ -266,9 +266,9 @@ export default async function ChangeRequestDetailPage({
         <section className="mt-8 border-t border-surface-border pt-6">
           <h2 className="text-sm font-semibold">Propagate</h2>
           <form action={generateEditsForChange} className="mt-3">
-            <Button type="submit" size="sm">
+            <SubmitButton size="sm" pendingLabel="Generating…">
               Generate proposed edits
-            </Button>
+            </SubmitButton>
           </form>
 
           {(proposedEdits ?? []).length > 0 && (
@@ -286,12 +286,12 @@ export default async function ChangeRequestDetailPage({
                     {edit.status === "Pending" && (
                       <form action={reviewEditForChange} className="mt-2 flex gap-2">
                         <input type="hidden" name="proposed_edit_id" value={edit.proposed_edit_id} />
-                        <Button type="submit" name="outcome" value="Approved" variant="primary" size="sm">
+                        <SubmitButton name="outcome" value="Approved" variant="primary" size="sm" pendingLabel="Approving…">
                           Approve
-                        </Button>
-                        <Button type="submit" name="outcome" value="Rejected" variant="danger" size="sm">
+                        </SubmitButton>
+                        <SubmitButton name="outcome" value="Rejected" variant="danger" size="sm" pendingLabel="Rejecting…">
                           Reject
-                        </Button>
+                        </SubmitButton>
                       </form>
                     )}
                   </Card>
@@ -301,9 +301,9 @@ export default async function ChangeRequestDetailPage({
           )}
 
           <form action={notifyForChange} className="mt-4 flex items-center gap-2">
-            <Button type="submit" size="sm">
+            <SubmitButton size="sm" pendingLabel="Notifying…">
               {changeRequest.notified_at ? "Re-notify delivery team" : "Notify delivery team"}
-            </Button>
+            </SubmitButton>
             {changeRequest.notified_at && (
               <span className="text-xs text-muted">
                 Notified {new Date(changeRequest.notified_at).toLocaleString()}
@@ -324,9 +324,9 @@ export default async function ChangeRequestDetailPage({
           )}
 
           <form action={completeForChange} className="mt-4">
-            <Button type="submit" variant="primary">
+            <SubmitButton variant="primary" pendingLabel="Closing…">
               Close change request
-            </Button>
+            </SubmitButton>
           </form>
         </section>
       )}

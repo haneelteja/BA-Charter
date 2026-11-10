@@ -5,7 +5,7 @@ import {
   resolveConflict,
   updateKnowledgeNode,
 } from "./actions";
-import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Badge, Card, Field, Input, PageHeader, Select, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -71,9 +71,13 @@ export default async function CharterPage({
                     required
                     className="flex-1 border-amber-300 bg-white dark:border-amber-800 dark:bg-neutral-900"
                   />
-                  <Button type="submit" size="sm" className="border-amber-900 bg-amber-900 text-white hover:bg-amber-800 dark:border-amber-200 dark:bg-amber-200 dark:text-amber-950">
+                  <SubmitButton
+                    size="sm"
+                    className="border-amber-900 bg-amber-900 text-white hover:bg-amber-800 dark:border-amber-200 dark:bg-amber-200 dark:text-amber-950"
+                    pendingLabel="Resolving…"
+                  >
                     Resolve
-                  </Button>
+                  </SubmitButton>
                 </form>
               </li>
             ))}
@@ -102,9 +106,9 @@ export default async function CharterPage({
             <Field label="Description" htmlFor="new-body">
               <Textarea id="new-body" name="body" placeholder="Description" rows={3} />
             </Field>
-            <Button type="submit" variant="primary" className="w-fit">
+            <SubmitButton variant="primary" className="w-fit" pendingLabel="Adding…">
               Add entry
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       </details>
@@ -138,9 +142,9 @@ export default async function CharterPage({
                           <input type="hidden" name="expected_version_no" value={node.version_no} />
                           <Input name="title" defaultValue={node.title} required />
                           <Textarea name="body" defaultValue={node.body ?? ""} rows={2} />
-                          <Button type="submit" size="sm" className="w-fit">
+                          <SubmitButton size="sm" className="w-fit" pendingLabel="Saving…">
                             Save (new version)
-                          </Button>
+                          </SubmitButton>
                         </form>
                       </details>
 
@@ -157,9 +161,9 @@ export default async function CharterPage({
                               required
                               rows={2}
                             />
-                            <Button type="submit" variant="danger" size="sm" className="w-fit">
+                            <SubmitButton variant="danger" size="sm" className="w-fit" pendingLabel="Flagging…">
                               Flag
-                            </Button>
+                            </SubmitButton>
                           </form>
                         </details>
                       )}

@@ -9,7 +9,7 @@ import {
   unlinkEpic,
   updateEpic,
 } from "../actions";
-import { BackLink, Badge, Button, Card, PageHeader, Select, Textarea } from "@/components/ui";
+import { BackLink, Badge, Card, PageHeader, Select, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -104,9 +104,9 @@ export default async function EpicDetailPage({
             <Textarea name="business_objective" defaultValue={epic.business_objective ?? ""} placeholder="Business objective" rows={2} />
             <Textarea name="in_scope" defaultValue={epic.in_scope ?? ""} placeholder="In scope" rows={2} />
             <Textarea name="out_of_scope" defaultValue={epic.out_of_scope ?? ""} placeholder="Out of scope" rows={2} />
-            <Button type="submit" size="sm" className="w-fit">
+            <SubmitButton size="sm" className="w-fit" pendingLabel="Saving…">
               Save
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       )}
@@ -177,17 +177,17 @@ export default async function EpicDetailPage({
               ))}
             </optgroup>
           </Select>
-          <Button type="submit" size="sm">
+          <SubmitButton size="sm" pendingLabel="Linking…">
             Link
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
       {epic.status === "Draft" && (
         <form action={submitForEpic} className="mt-6">
-          <Button type="submit" variant="primary">
+          <SubmitButton variant="primary" pendingLabel="Submitting…">
             Submit for review
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -196,12 +196,12 @@ export default async function EpicDetailPage({
           <form action={reviewForEpic} className="flex flex-col gap-2">
             <Textarea name="comments" placeholder="Review comments" rows={2} />
             <div className="flex gap-2">
-              <Button type="submit" name="outcome" value="Approved" variant="primary" size="sm">
+              <SubmitButton name="outcome" value="Approved" variant="primary" size="sm" pendingLabel="Approving…">
                 Approve
-              </Button>
-              <Button type="submit" name="outcome" value="ReturnedForRework" variant="danger" size="sm">
+              </SubmitButton>
+              <SubmitButton name="outcome" value="ReturnedForRework" variant="danger" size="sm" pendingLabel="Returning…">
                 Return for rework
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </Card>
@@ -212,9 +212,9 @@ export default async function EpicDetailPage({
 
       {epic.status === "Approved" && (
         <form action={publishForEpic} className="mt-6">
-          <Button type="submit" variant="primary">
+          <SubmitButton variant="primary" pendingLabel="Publishing…">
             Publish to Agile Studio
-          </Button>
+          </SubmitButton>
         </form>
       )}
 

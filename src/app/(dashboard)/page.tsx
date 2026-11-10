@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createProject } from "./projects/actions";
-import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Badge, Card, Field, Input, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -98,9 +98,9 @@ export default async function WorkspacePage() {
             <Field label="Start date" htmlFor="start_date">
               <Input id="start_date" name="start_date" type="date" />
             </Field>
-            <Button type="submit" variant="primary" className="mt-1 w-fit">
+            <SubmitButton variant="primary" className="mt-1 w-fit" pendingLabel="Creating…">
               Create project
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       </details>

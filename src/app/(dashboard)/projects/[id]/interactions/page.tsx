@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createInteraction } from "./actions";
-import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Badge, Card, Field, Input, PageHeader, Select, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -74,9 +74,9 @@ export default async function InteractionsPage({
                 className="font-mono text-xs"
               />
             </Field>
-            <Button type="submit" variant="primary" className="w-fit">
+            <SubmitButton variant="primary" className="w-fit" pendingLabel="Capturing…">
               Capture
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       </details>

@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { cancelActionItem, completeActionItem, startActionItem, verifyActionItem } from "./actions";
-import { Badge, Button, Card, Input, PageHeader } from "@/components/ui";
+import { Badge, Card, Input, PageHeader, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -87,26 +87,26 @@ export default async function ActionItemsPage({
                         {item.status === "Open" && (
                           <form action={startForProject}>
                             <input type="hidden" name="action_item_id" value={item.action_item_id} />
-                            <Button type="submit" size="sm">
+                            <SubmitButton size="sm" pendingLabel="Starting…">
                               Start
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {item.status === "InProgress" && (
                           <form action={completeForProject} className="flex items-center gap-2">
                             <input type="hidden" name="action_item_id" value={item.action_item_id} />
                             <Input name="outcome_note" placeholder="Outcome" className="h-8 py-1 text-xs" />
-                            <Button type="submit" size="sm">
+                            <SubmitButton size="sm" pendingLabel="Completing…">
                               Complete
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {item.status === "Completed" && (
                           <form action={verifyForProject}>
                             <input type="hidden" name="action_item_id" value={item.action_item_id} />
-                            <Button type="submit" variant="primary" size="sm">
+                            <SubmitButton variant="primary" size="sm" pendingLabel="Verifying…">
                               Verify closure
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {(item.status === "Open" || item.status === "InProgress") && (

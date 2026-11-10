@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { Button, Card, Textarea } from "@/components/ui";
+import { Card, SubmitButton, Textarea } from "@/components/ui";
 
 export interface CandidateForMerge {
   candidateId: string;
@@ -56,9 +56,9 @@ export function MergeCandidatesPanel({ candidates, mergeAction }: MergeCandidate
               rows={2}
               className="mt-2 border-indigo-300 bg-white text-xs dark:border-indigo-800 dark:bg-neutral-900"
             />
-            <Button type="submit" size="sm" className="mt-2 w-fit" disabled={selected.size < 2}>
+            <SubmitButton size="sm" className="mt-2 w-fit" disabled={selected.size < 2} pendingLabel="Merging…">
               Merge checked candidates
-            </Button>
+            </SubmitButton>
           </Card>
         </form>
       )}

@@ -7,7 +7,7 @@ import {
   toggleGuardrailRule,
 } from "./actions";
 import { StoryChecker } from "./StoryChecker";
-import { Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Card, Field, Input, PageHeader, Select, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -94,9 +94,9 @@ export default async function GuardrailsPage({
               <Field label="Banned forms" htmlFor="banned_forms">
                 <Input id="banned_forms" name="banned_forms" placeholder="Banned forms (comma-separated)" />
               </Field>
-              <Button type="submit" size="sm" className="w-fit">
+              <SubmitButton size="sm" className="w-fit" pendingLabel="Adding…">
                 Add
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         </details>
@@ -167,9 +167,9 @@ export default async function GuardrailsPage({
                   ))}
                 </Select>
               </Field>
-              <Button type="submit" size="sm" className="w-fit">
+              <SubmitButton size="sm" className="w-fit" pendingLabel="Adding…">
                 Add
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         </details>

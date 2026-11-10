@@ -20,7 +20,7 @@ import {
   generateMinutes,
   updateMinutes,
 } from "./minutes-actions";
-import { BackLink, Badge, Button, Card, Input, PageHeader, Textarea } from "@/components/ui";
+import { BackLink, Badge, Card, Input, PageHeader, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -173,9 +173,9 @@ export default async function InteractionDetailPage({
       {(interaction.processing_status === "Received" || interaction.processing_status === "Indexed") && (
         <Card className="mt-6">
           <form action={triggerForInteraction}>
-            <Button type="submit" variant="primary">
+            <SubmitButton variant="primary" pendingLabel="Running…">
               Run extraction
-            </Button>
+            </SubmitButton>
             <p className="mt-2 text-xs text-muted">
               Queues candidate decisions, action items, clarifications, risks and change signals.
             </p>
@@ -209,24 +209,24 @@ export default async function InteractionDetailPage({
                           className="border-amber-300 bg-white text-xs dark:border-amber-800 dark:bg-neutral-900"
                         />
                         <div className="flex gap-2">
-                          <Button
-                            type="submit"
+                          <SubmitButton
                             name="decision"
                             value="accept"
                             size="sm"
                             className="bg-amber-900 text-white hover:bg-amber-800 dark:bg-amber-200 dark:text-amber-950"
+                            pendingLabel="Accepting…"
                           >
                             Accept (supersedes old decision)
-                          </Button>
-                          <Button
-                            type="submit"
+                          </SubmitButton>
+                          <SubmitButton
                             name="decision"
                             value="reject"
                             size="sm"
                             className="border border-amber-900 text-amber-900 dark:border-amber-200 dark:text-amber-200"
+                            pendingLabel="Rejecting…"
                           >
                             Reject
-                          </Button>
+                          </SubmitButton>
                         </div>
                       </form>
                     ) : (
@@ -260,9 +260,9 @@ export default async function InteractionDetailPage({
                         <Input name="suggested_owner" defaultValue={c.suggested_owner ?? ""} placeholder="Owner name" className="text-xs" />
                       )}
                       <div className="flex gap-2">
-                        <Button type="submit" variant="primary" size="sm">
+                        <SubmitButton variant="primary" size="sm" pendingLabel="Accepting…">
                           Accept
-                        </Button>
+                        </SubmitButton>
                       </div>
                     </form>
                     <form action={rejectForInteraction} className="mt-1">
@@ -283,9 +283,9 @@ export default async function InteractionDetailPage({
                           rows={3}
                           className="text-xs"
                         />
-                        <Button type="submit" size="sm" className="w-fit">
+                        <SubmitButton size="sm" className="w-fit" pendingLabel="Splitting…">
                           Split
-                        </Button>
+                        </SubmitButton>
                       </form>
                     </details>
                   </>
@@ -317,9 +317,9 @@ export default async function InteractionDetailPage({
 
           {interaction.processing_status === "Extracted" && pendingCount === 0 && (candidates?.length ?? 0) > 0 && (
             <form action={confirmForInteraction} className="mt-4">
-              <Button type="submit" variant="primary">
+              <SubmitButton variant="primary" pendingLabel="Confirming…">
                 Confirm &amp; continue to minutes
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </section>
@@ -327,9 +327,9 @@ export default async function InteractionDetailPage({
 
       {interaction.processing_status === "Confirmed" && !minutes && (
         <form action={generateMinutesForInteraction} className="mt-8">
-          <Button type="submit" variant="primary">
+          <SubmitButton variant="primary" pendingLabel="Generating…">
             Generate minutes of meeting
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -344,9 +344,9 @@ export default async function InteractionDetailPage({
               <input type="hidden" name="minutes_id" value={minutes.minutes_id} />
               <Input name="subject" defaultValue={minutes.subject ?? ""} />
               <Textarea name="body_html" defaultValue={minutes.body_html ?? ""} rows={10} className="font-mono text-xs" />
-              <Button type="submit" size="sm" className="w-fit">
+              <SubmitButton size="sm" className="w-fit" pendingLabel="Saving…">
                 Save edits
-              </Button>
+              </SubmitButton>
             </form>
           )}
 
@@ -367,9 +367,9 @@ export default async function InteractionDetailPage({
                   {r.label} ({r.email})
                 </label>
               ))}
-              <Button type="submit" variant="primary" size="sm" className="mt-1 w-fit">
+              <SubmitButton variant="primary" size="sm" className="mt-1 w-fit" pendingLabel="Approving…">
                 Approve &amp; distribute
-              </Button>
+              </SubmitButton>
             </form>
           )}
 
@@ -377,9 +377,9 @@ export default async function InteractionDetailPage({
             <form action={disputeForInteraction} className="mt-4 flex flex-col gap-2 border-t border-surface-border pt-4">
               <input type="hidden" name="minutes_id" value={minutes.minutes_id} />
               <Textarea name="dispute_note" placeholder="Dispute reason" rows={2} className="border-red-300 dark:border-red-800" />
-              <Button type="submit" variant="danger" size="sm" className="w-fit">
+              <SubmitButton variant="danger" size="sm" className="w-fit" pendingLabel="Submitting…">
                 Dispute minutes
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </Card>

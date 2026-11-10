@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { getMinutesAckRecord } from "@/lib/minutes/ackToken";
 import { acknowledgeMinutes, disputeMinutesPublic } from "./actions";
-import { Badge, Button, Card, Field, Textarea } from "@/components/ui";
+import { Badge, Card, Field, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +58,9 @@ export default async function MinutesAckPage({ params }: { params: Promise<{ tok
             <>
               <p className="mt-1 text-xs text-muted">Confirm you&apos;ve reviewed these minutes.</p>
               <form action={acknowledgeForToken} className="mt-3">
-                <Button type="submit" variant="primary" size="sm">
+                <SubmitButton variant="primary" size="sm" pendingLabel="Acknowledging…">
                   Acknowledge
-                </Button>
+                </SubmitButton>
               </form>
             </>
           )}
@@ -82,9 +82,9 @@ export default async function MinutesAckPage({ params }: { params: Promise<{ tok
                 <Field label="What's wrong?" htmlFor="dispute_note">
                   <Textarea id="dispute_note" name="dispute_note" rows={3} required />
                 </Field>
-                <Button type="submit" size="sm" className="w-fit">
+                <SubmitButton size="sm" className="w-fit" pendingLabel="Submitting…">
                   Submit
-                </Button>
+                </SubmitButton>
               </form>
             </>
           )}

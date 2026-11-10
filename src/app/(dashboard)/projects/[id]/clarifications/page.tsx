@@ -1,7 +1,7 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { isOlderThanDays } from "@/lib/dates";
 import { answerClarification, confirmAnswer, markAsked, markPrepared, withdrawClarification } from "./actions";
-import { Badge, Button, Card, Input, PageHeader } from "@/components/ui";
+import { Badge, Card, Input, PageHeader, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -96,9 +96,9 @@ export default async function ClarificationsPage({
                         {c.status === "Raised" && (
                           <form action={prepareForProject}>
                             <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                            <Button type="submit" size="sm">
+                            <SubmitButton size="sm" pendingLabel="Updating…">
                               Mark prepared
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {(c.status === "Raised" || c.status === "Prepared") && (
@@ -106,9 +106,9 @@ export default async function ClarificationsPage({
                             <input type="hidden" name="clarification_id" value={c.clarification_id} />
                             <Input name="asked_channel" placeholder="Channel" className="h-8 w-20 py-1 text-xs" />
                             <Input name="asked_on" type="date" aria-label="Asked on" className="h-8 py-1 text-xs" />
-                            <Button type="submit" size="sm">
+                            <SubmitButton size="sm" pendingLabel="Updating…">
                               Mark asked
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {c.status === "Asked" && (
@@ -116,17 +116,17 @@ export default async function ClarificationsPage({
                             <input type="hidden" name="clarification_id" value={c.clarification_id} />
                             <Input name="answer_text" placeholder="Answer" required className="h-8 py-1 text-xs" />
                             <Input name="answered_by" placeholder="Answered by" required className="h-8 py-1 text-xs" />
-                            <Button type="submit" size="sm" className="w-fit">
+                            <SubmitButton size="sm" className="w-fit" pendingLabel="Recording…">
                               Record answer
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {c.status === "Answered" && (
                           <form action={confirmForProject}>
                             <input type="hidden" name="clarification_id" value={c.clarification_id} />
-                            <Button type="submit" variant="primary" size="sm">
+                            <SubmitButton variant="primary" size="sm" pendingLabel="Confirming…">
                               Confirm answer
-                            </Button>
+                            </SubmitButton>
                           </form>
                         )}
                         {!["Confirmed", "Withdrawn"].includes(c.status) && (

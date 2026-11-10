@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { saveLlmSetting, clearLlmSetting } from "./actions";
-import { Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Card, Field, Input, PageHeader, Select, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +68,9 @@ export default async function SettingsPage() {
             <Input id="api_key" name="api_key" type="password" placeholder="sk-..." required autoComplete="off" />
           </Field>
 
-          <Button type="submit" variant="primary" className="mt-1 w-fit">
+          <SubmitButton variant="primary" className="mt-1 w-fit" pendingLabel="Saving…">
             Save
-          </Button>
+          </SubmitButton>
         </form>
       </Card>
     </main>

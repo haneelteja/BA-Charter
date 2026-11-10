@@ -10,7 +10,7 @@ import {
   toggleDeliveryPartnerActive,
   updateDeliveryPartnerSla,
 } from "./actions";
-import { Badge, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
+import { Badge, Card, Field, Input, PageHeader, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -230,9 +230,9 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
                   placeholder="Leave blank for no automatic fallback"
                 />
               </Field>
-              <Button type="submit" size="sm" className="w-fit">
+              <SubmitButton size="sm" className="w-fit" pendingLabel="Adding…">
                 Add partner
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         </details>
@@ -281,9 +281,9 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
               <Field label="Notes" htmlFor="notes">
                 <Textarea id="notes" name="notes" placeholder="Notes" rows={2} />
               </Field>
-              <Button type="submit" size="sm" className="w-fit">
+              <SubmitButton size="sm" className="w-fit" pendingLabel="Creating…">
                 Create delivery
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         </details>
@@ -307,17 +307,17 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
                   {d.status === "Assigned" && (
                     <form action={markInTransitForProject}>
                       <input type="hidden" name="delivery_id" value={d.delivery_id} />
-                      <Button type="submit" size="sm">
+                      <SubmitButton size="sm" pendingLabel="Updating…">
                         Mark in transit
-                      </Button>
+                      </SubmitButton>
                     </form>
                   )}
                   {(d.status === "Assigned" || d.status === "InTransit") && (
                     <form action={markDeliveredForProject}>
                       <input type="hidden" name="delivery_id" value={d.delivery_id} />
-                      <Button type="submit" variant="primary" size="sm">
+                      <SubmitButton variant="primary" size="sm" pendingLabel="Updating…">
                         Mark delivered
-                      </Button>
+                      </SubmitButton>
                     </form>
                   )}
                   {(d.status === "Assigned" || d.status === "InTransit") && (

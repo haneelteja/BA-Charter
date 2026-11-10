@@ -1,7 +1,7 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole, isLead } from "@/lib/projects/role";
 import { setEmbeddingConfig } from "../settings-actions";
-import { Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Card, Field, Input, PageHeader, Select, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -64,9 +64,9 @@ export default async function ProjectSettingsPage({ params }: { params: Promise<
                   placeholder="e.g. openai/text-embedding-3-small"
                 />
               </Field>
-              <Button type="submit" size="sm" className="w-fit">
+              <SubmitButton size="sm" className="w-fit" pendingLabel="Saving…">
                 Save
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </Card>

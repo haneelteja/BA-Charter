@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createEpic } from "./actions";
-import { Badge, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
+import { Badge, Card, Field, Input, PageHeader, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +56,9 @@ export default async function EpicsPage({
             <Field label="Out of scope" htmlFor="epic-out-scope">
               <Textarea id="epic-out-scope" name="out_of_scope" placeholder="Out of scope" rows={2} />
             </Field>
-            <Button type="submit" variant="primary" className="w-fit">
+            <SubmitButton variant="primary" className="w-fit" pendingLabel="Creating…">
               Create
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       </details>

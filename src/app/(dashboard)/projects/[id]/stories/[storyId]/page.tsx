@@ -12,7 +12,7 @@ import {
   updateStoryDetail,
 } from "../actions";
 import { StoryCheckPanel } from "./StoryCheckPanel";
-import { BackLink, Badge, Button, Card, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { BackLink, Badge, Card, Input, PageHeader, Select, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -131,9 +131,9 @@ export default async function StoryDetailPage({
             <Input name="nfr_security" defaultValue={story.nfr_security ?? ""} placeholder="NFR: security" />
             <Input name="nfr_accessibility" defaultValue={story.nfr_accessibility ?? ""} placeholder="NFR: accessibility" />
             <Input name="nfr_audit" defaultValue={story.nfr_audit ?? ""} placeholder="NFR: audit" />
-            <Button type="submit" size="sm" className="w-fit">
+            <SubmitButton size="sm" className="w-fit" pendingLabel="Saving…">
               Save
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
       )}
@@ -168,9 +168,9 @@ export default async function StoryDetailPage({
           <label className="flex items-center gap-1.5 text-xs text-muted">
             <input type="checkbox" name="is_negative_path" /> Negative path
           </label>
-          <Button type="submit" size="sm" className="w-fit">
+          <SubmitButton size="sm" className="w-fit" pendingLabel="Adding…">
             Add criterion
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -208,9 +208,9 @@ export default async function StoryDetailPage({
             <option value="RelatesTo">Relates to</option>
             <option value="Duplicates">Duplicates</option>
           </Select>
-          <Button type="submit" size="sm">
+          <SubmitButton size="sm" pendingLabel="Adding…">
             Add
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -222,9 +222,9 @@ export default async function StoryDetailPage({
           </div>
           {story.guardrail_pass && (
             <form action={submitForStory} className="mt-4">
-              <Button type="submit" variant="primary">
+              <SubmitButton variant="primary" pendingLabel="Submitting…">
                 Submit for review
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </section>
@@ -236,12 +236,12 @@ export default async function StoryDetailPage({
           <form action={reviewForStory} className="mt-3 flex flex-col gap-2">
             <Textarea name="comments" placeholder="Review comments" rows={2} />
             <div className="flex gap-2">
-              <Button type="submit" name="outcome" value="Approved" variant="primary" size="sm">
+              <SubmitButton name="outcome" value="Approved" variant="primary" size="sm" pendingLabel="Approving…">
                 Approve
-              </Button>
-              <Button type="submit" name="outcome" value="ReturnedForRework" variant="danger" size="sm">
+              </SubmitButton>
+              <SubmitButton name="outcome" value="ReturnedForRework" variant="danger" size="sm" pendingLabel="Returning…">
                 Return for rework
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </section>
@@ -269,17 +269,17 @@ export default async function StoryDetailPage({
                   </option>
                 ))}
               </Select>
-              <Button type="submit" size="sm">
+              <SubmitButton size="sm" pendingLabel="Linking…">
                 Link
-              </Button>
+              </SubmitButton>
             </form>
           )}
 
           {story.status === "Approved" && (
             <form action={publishForStory} className="mt-4">
-              <Button type="submit" variant="primary">
+              <SubmitButton variant="primary" pendingLabel="Publishing…">
                 Publish to Agile Studio
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </section>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { generateQuestions, type BrainstormQuestion } from "../actions";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card, SubmitButton } from "@/components/ui";
 
 const PRIORITY_TONE: Record<string, "red" | "amber" | "neutral"> = {
   High: "red",
@@ -71,9 +71,9 @@ export function BrainstormPanel({
                   <label className="flex items-center gap-1 text-muted">
                     <input type="checkbox" name="is_blocking" defaultChecked={q.priority === "High"} /> Blocking
                   </label>
-                  <Button type="submit" size="sm">
+                  <SubmitButton size="sm" pendingLabel="Raising…">
                     Raise as clarification
-                  </Button>
+                  </SubmitButton>
                 </form>
               </Card>
             </li>
