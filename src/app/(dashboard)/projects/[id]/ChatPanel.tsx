@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type FormEvent } from "react";
+import { useActionState, useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Card } from "@/components/ui";
 import { uploadDocument, type UploadDocumentResult } from "./documents-actions";
 import { SUPPORTED_EXTENSIONS } from "@/lib/documents/supportedExtensions";
-import type { ChatTextPart, ChatUIMessage } from "@/lib/ai/projectChat";
+import type { ChatFileUIPart, ChatTextPart, ChatUIMessage } from "@/lib/ai/projectChat";
 
 /**
  * A folder's relative path, as the browser reports it on each selected
@@ -37,6 +37,28 @@ function messageText(message: ChatUIMessage): string {
     .filter((p): p is ChatTextPart => p.type === "text")
     .map((p) => p.text)
     .join("\n");
+}
+
+function messageImages(message: ChatUIMessage): ChatFileUIPart[] {
+  return message.parts.filter((p): p is ChatFileUIPart => p.type === "file" && p.mediaType.startsWith("image"));
+}
+
+function XIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-3 w-3"
+      aria-hidden="true"
+    >
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
 }
 
 function PlusIcon() {
@@ -144,13 +166,63 @@ export function ChatPanel({
 
   const [input, setInput] = useState("");
   const isBusy = status === "submitted" || status === "streaming";
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grows the composer with the content, up to a cap — past that it scrolls
+  // internally (via the thin themed scrollbar) instead of pushing the rest
+  // of the page around.
+  const MAX_COMPOSER_HEIGHT_PX = 200;
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_HEIGHT_PX)}px`;
+  }, [input]);
+
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const [pendingImagePreviewUrl, setPendingImagePreviewUrl] = useState<string | null>(null);
+
+  function attachImage(file: File) {
+    setPendingImage(file);
+    setPendingImagePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function clearPendingImage() {
+    setPendingImage(null);
+    setPendingImagePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    const imageItem = Array.from(items).find((item) => item.kind === "file" && item.type.startsWith("image/"));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    event.preventDefault();
+    attachImage(file);
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || isBusy) return;
+    if ((!text && !pendingImage) || isBusy) return;
     setInput("");
-    sendMessage({ text });
+
+    if (pendingImage) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(pendingImage);
+      clearPendingImage();
+      sendMessage({ text, files: dataTransfer.files });
+    } else {
+      sendMessage({ text });
+    }
   }
 
   const [uploadState, uploadFormAction, isUploading] = useActionState<UploadDocumentResult | null, FormData>(
@@ -249,7 +321,20 @@ export function ChatPanel({
                       : "max-w-[80%]"
                   }
                 >
-                  <p className="whitespace-pre-wrap text-sm">{messageText(m)}</p>
+                  {messageImages(m).length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {messageImages(m).map((f, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element -- data: / blob: URLs, not a static asset next/image can optimize
+                        <img
+                          key={i}
+                          src={f.url}
+                          alt={f.filename ?? "Pasted image"}
+                          className="max-h-48 rounded-lg border border-surface-border"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {messageText(m) && <p className="whitespace-pre-wrap text-sm">{messageText(m)}</p>}
                 </Card>
               </li>
             ))}
@@ -299,66 +384,91 @@ export function ChatPanel({
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-1.5 rounded-3xl border border-surface-border bg-surface p-1.5 shadow-sm transition-colors focus-within:border-indigo-300 dark:focus-within:border-indigo-800"
+          className="flex flex-col gap-1.5 rounded-3xl border border-surface-border bg-surface p-1.5 shadow-sm transition-colors focus-within:border-indigo-300 dark:focus-within:border-indigo-800"
         >
-          <div ref={attachMenuRef} className="relative shrink-0">
-            {isAttachMenuOpen && (
-              <div className="absolute bottom-full left-0 mb-2 w-44 rounded-xl border border-surface-border bg-surface py-1 shadow-md">
+          {pendingImagePreviewUrl && (
+            <div className="px-2 pt-1">
+              <div className="relative w-fit">
+                {/* eslint-disable-next-line @next/next/no-img-element -- blob: URL preview, not a static asset */}
+                <img
+                  src={pendingImagePreviewUrl}
+                  alt="Pasted image"
+                  className="h-16 w-16 rounded-lg border border-surface-border object-cover"
+                />
                 <button
                   type="button"
-                  onClick={() => {
-                    setAttachMenuOpen(false);
-                    fileInputRef.current?.click();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  onClick={clearPendingImage}
+                  aria-label="Remove attached image"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
                 >
-                  <FileIcon /> Upload file
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAttachMenuOpen(false);
-                    folderInputRef.current?.click();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <FolderIcon /> Upload folder
+                  <XIcon />
                 </button>
               </div>
-            )}
+            </div>
+          )}
+
+          <div className="flex items-end gap-1.5">
+            <div ref={attachMenuRef} className="relative shrink-0">
+              {isAttachMenuOpen && (
+                <div className="absolute bottom-full left-0 mb-2 w-44 rounded-xl border border-surface-border bg-surface py-1 shadow-md">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <FileIcon /> Upload file
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      folderInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <FolderIcon /> Upload folder
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setAttachMenuOpen((open) => !open)}
+                aria-label="Attach a file or folder to this project's knowledge base"
+                aria-expanded={isAttachMenuOpen}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
+              >
+                <PlusIcon />
+              </button>
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onPaste={handlePaste}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+              placeholder="Ask about this project…"
+              rows={1}
+              className="scrollbar-thin flex-1 resize-none overflow-y-auto bg-transparent px-1 py-1.5 text-sm text-foreground placeholder:text-muted/70 focus:outline-none"
+            />
+
             <button
-              type="button"
-              onClick={() => setAttachMenuOpen((open) => !open)}
-              aria-label="Attach a file or folder to this project's knowledge base"
-              aria-expanded={isAttachMenuOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
+              type="submit"
+              disabled={isBusy || (!input.trim() && !pendingImage)}
+              aria-label="Send"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-surface-border disabled:text-muted"
             >
-              <PlusIcon />
+              {isBusy ? <Spinner /> : <ArrowUpIcon />}
             </button>
           </div>
-
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            placeholder="Ask about this project…"
-            rows={1}
-            className="flex-1 resize-none bg-transparent px-1 py-1.5 text-sm text-foreground placeholder:text-muted/70 focus:outline-none"
-          />
-
-          <button
-            type="submit"
-            disabled={isBusy || !input.trim()}
-            aria-label="Send"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-surface-border disabled:text-muted"
-          >
-            {isBusy ? <Spinner /> : <ArrowUpIcon />}
-          </button>
         </form>
 
         <form ref={uploadFormRef} action={uploadFormAction}>

@@ -1,21 +1,30 @@
 import type { RetrievalResult } from "./search";
 
 /**
- * The only part shape this app's chat ever produces or persists — plain
- * text turns, no tool calls/reasoning/files. Kept narrower than the AI
- * SDK's full `UIMessagePart` union on purpose: widen it (and
- * `extractMessageText`) if a future feature actually needs another part
- * type, rather than accepting a shape nothing here uses yet.
+ * The only part shapes this app's chat ever produces or persists — plain
+ * text turns and pasted-image attachments, no tool calls/reasoning. Kept
+ * narrower than the AI SDK's full `UIMessagePart` union on purpose: widen
+ * it (and the helpers below) if a future feature needs another part type.
  */
 export interface ChatTextPart {
   type: "text";
   text: string;
 }
 
+/** Mirrors the AI SDK's `FileUIPart` shape — `useChat`'s `sendMessage({ files })` produces these directly (as data: URLs for pasted/picked files). */
+export interface ChatFileUIPart {
+  type: "file";
+  mediaType: string;
+  filename?: string;
+  url: string;
+}
+
+export type ChatMessagePart = ChatTextPart | ChatFileUIPart;
+
 export interface ChatUIMessage {
   id: string;
   role: "user" | "assistant";
-  parts: ChatTextPart[];
+  parts: ChatMessagePart[];
 }
 
 export interface StoredChatMessageRow {
@@ -29,14 +38,16 @@ export function dbRowsToUIMessages(rows: StoredChatMessageRow[]): ChatUIMessage[
   return rows.map((row) => ({
     id: row.chat_message_id,
     role: row.role,
-    parts: Array.isArray(row.parts) ? (row.parts as ChatTextPart[]).filter((p) => p?.type === "text") : [],
+    parts: Array.isArray(row.parts)
+      ? (row.parts as ChatMessagePart[]).filter((p) => p?.type === "text" || p?.type === "file")
+      : [],
   }));
 }
 
 /** Flattens a message's text parts into one string — e.g. to use as the retrieval query. */
 export function extractMessageText(message: Pick<ChatUIMessage, "parts">): string {
   return message.parts
-    .filter((p) => p.type === "text")
+    .filter((p): p is ChatTextPart => p.type === "text")
     .map((p) => p.text)
     .join("\n")
     .trim();

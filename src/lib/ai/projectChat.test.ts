@@ -15,7 +15,7 @@ describe("dbRowsToUIMessages", () => {
     ]);
   });
 
-  it("drops non-text parts and tolerates malformed parts data", () => {
+  it("drops unsupported parts and tolerates malformed parts data", () => {
     const rows = [
       { chat_message_id: "m1", role: "user" as const, parts: [{ type: "tool-call", foo: "bar" }, { type: "text", text: "ok" }] },
       { chat_message_id: "m2", role: "assistant" as const, parts: "not an array" },
@@ -24,6 +24,24 @@ describe("dbRowsToUIMessages", () => {
     const result = dbRowsToUIMessages(rows);
     expect(result[0].parts).toEqual([{ type: "text", text: "ok" }]);
     expect(result[1].parts).toEqual([]);
+  });
+
+  it("keeps pasted-image file parts alongside text", () => {
+    const rows = [
+      {
+        chat_message_id: "m1",
+        role: "user" as const,
+        parts: [
+          { type: "text", text: "what's in this?" },
+          { type: "file", mediaType: "image/png", filename: "shot.png", url: "data:image/png;base64,abc" },
+        ],
+      },
+    ];
+
+    expect(dbRowsToUIMessages(rows)[0].parts).toEqual([
+      { type: "text", text: "what's in this?" },
+      { type: "file", mediaType: "image/png", filename: "shot.png", url: "data:image/png;base64,abc" },
+    ]);
   });
 });
 
@@ -44,6 +62,16 @@ describe("extractMessageText", () => {
 
   it("returns an empty string for a message with no text parts", () => {
     expect(extractMessageText({ parts: [] })).toBe("");
+  });
+
+  it("ignores file parts, using only the text parts", () => {
+    const text = extractMessageText({
+      parts: [
+        { type: "file", mediaType: "image/png", url: "data:image/png;base64,abc" },
+        { type: "text", text: "what's in this?" },
+      ],
+    });
+    expect(text).toBe("what's in this?");
   });
 });
 
