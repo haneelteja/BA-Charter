@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { dbRowsToUIMessages } from "@/lib/ai/projectChat";
 import { ChatPanel } from "./ChatPanel";
@@ -30,20 +29,10 @@ export default async function ProjectChatPage({ params }: { params: Promise<{ id
   const initialMessages = dbRowsToUIMessages(historyRows ?? []);
 
   return (
-    <>
-      {!project?.embedding_provider && (
-        <div className="mx-auto max-w-3xl px-6 pt-4">
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            No embedding model configured for this project yet — chat can&apos;t see any project content
-            until a Lead BA sets one in{" "}
-            <Link href={`/projects/${projectId}/settings`} className="font-medium underline">
-              Settings
-            </Link>
-            .
-          </p>
-        </div>
-      )}
-      <ChatPanel projectId={projectId} initialMessages={initialMessages} />
-    </>
+    <ChatPanel
+      projectId={projectId}
+      initialMessages={initialMessages}
+      embeddingConfigured={Boolean(project?.embedding_provider)}
+    />
   );
 }

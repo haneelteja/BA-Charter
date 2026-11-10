@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Button, Card, SubmitButton, Textarea } from "@/components/ui";
@@ -18,9 +19,11 @@ function messageText(message: ChatUIMessage): string {
 export function ChatPanel({
   projectId,
   initialMessages,
+  embeddingConfigured,
 }: {
   projectId: string;
   initialMessages: ChatUIMessage[];
+  embeddingConfigured: boolean;
 }) {
   const { messages, sendMessage, status, error } = useChat<ChatUIMessage>({
     id: `project-${projectId}`,
@@ -45,7 +48,17 @@ export function ChatPanel({
   );
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-57px)] max-w-3xl flex-col px-6 py-6">
+    <div className="mx-auto flex h-full max-w-3xl flex-col px-6 py-6">
+      {!embeddingConfigured && (
+        <p className="mb-4 shrink-0 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          No embedding model configured for this project yet — chat can&apos;t see any project content
+          until a Lead BA sets one in{" "}
+          <Link href={`/projects/${projectId}/settings`} className="font-medium underline">
+            Settings
+          </Link>
+          .
+        </p>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <p className="mt-10 text-center text-sm text-muted">

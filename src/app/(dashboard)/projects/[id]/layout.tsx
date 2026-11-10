@@ -51,8 +51,8 @@ export default async function ProjectLayout({
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-7xl">
-      <aside className="w-64 shrink-0 border-r border-surface-border px-4 py-6">
+    <div className="mx-auto flex h-full max-w-7xl overflow-hidden">
+      <aside className="h-full w-64 shrink-0 overflow-y-auto border-r border-surface-border px-4 py-6">
         <div className="px-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h1 className="truncate text-sm font-semibold tracking-tight">{project.project_name}</h1>
@@ -64,7 +64,7 @@ export default async function ProjectLayout({
           <ProjectSidebarNav projectId={projectId} items={NAV_ITEMS} />
         </div>
       </aside>
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="h-full min-w-0 flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

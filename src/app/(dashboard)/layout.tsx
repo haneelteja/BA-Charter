@@ -13,8 +13,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-surface-border bg-surface/80 px-6 py-3 backdrop-blur-sm">
+    <div className="flex h-dvh flex-col">
+      <header className="flex shrink-0 items-center justify-between border-b border-surface-border bg-surface/80 px-6 py-3 backdrop-blur-sm">
         <nav className="flex items-center gap-6 text-sm">
           <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-[11px] font-bold text-white">
@@ -38,7 +38,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </button>
         </form>
       </header>
-      <div className="flex-1">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </div>
   );
 }
