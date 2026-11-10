@@ -4,6 +4,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui";
 import { ProjectSidebarNav, type ProjectNavItem } from "./ProjectSidebarNav";
 import { RightPanel } from "./RightPanel";
+import { CollapsibleAside } from "./CollapsibleAside";
 
 const STATUS_TONE: Record<string, "green" | "indigo" | "amber" | "neutral"> = {
   Active: "green",
@@ -53,7 +54,7 @@ export default async function ProjectLayout({
 
   return (
     <div className="mx-auto flex h-full max-w-[96rem] overflow-hidden">
-      <aside className="scrollbar-thin h-full w-64 shrink-0 overflow-y-auto border-r border-surface-border px-4 py-6">
+      <CollapsibleAside side="left" expandedWidthClass="w-64" label="navigation">
         <div className="px-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h1 className="truncate text-sm font-semibold tracking-tight">{project.project_name}</h1>
@@ -64,11 +65,13 @@ export default async function ProjectLayout({
         <div className="mt-5">
           <ProjectSidebarNav projectId={projectId} items={NAV_ITEMS} />
         </div>
-      </aside>
+      </CollapsibleAside>
       <main className="scrollbar-thin h-full min-w-0 flex-1 overflow-y-auto">{children}</main>
-      <aside className="scrollbar-thin hidden h-full w-80 shrink-0 overflow-y-auto border-l border-surface-border lg:block">
-        <RightPanel projectId={projectId} />
-      </aside>
+      <div className="hidden h-full lg:block">
+        <CollapsibleAside side="right" expandedWidthClass="w-80" label="activity panel">
+          <RightPanel projectId={projectId} />
+        </CollapsibleAside>
+      </div>
     </div>
   );
 }

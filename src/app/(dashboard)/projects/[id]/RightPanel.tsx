@@ -65,7 +65,7 @@ export async function RightPanel({ projectId }: { projectId: string }) {
   const actorName = (id: string | null) => (actors ?? []).find((a) => a.user_id === id)?.full_name ?? "System";
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-6">
+    <div className="flex flex-col gap-6">
       <section>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Action items</h2>

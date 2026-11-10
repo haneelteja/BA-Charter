@@ -20,7 +20,7 @@ export function ProjectSidebarNav({ projectId, items }: { projectId: string; ite
   const base = `/projects/${projectId}`;
 
   return (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1.5">
       {items.map((item) => {
         const href = item.href ? `${base}/${item.href}` : base;
         const isActive = item.href ? pathname.startsWith(href) : pathname === base;
@@ -30,10 +30,10 @@ export function ProjectSidebarNav({ projectId, items }: { projectId: string; ite
             key={href}
             href={href}
             className={cn(
-              "rounded-lg px-3 py-2 text-sm transition-colors",
+              "rounded-lg border px-3 py-2 text-sm transition-colors",
               isActive
-                ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
-                : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
+                ? "border-indigo-200 bg-indigo-50 font-medium text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300"
+                : "border-surface-border bg-surface text-muted hover:border-indigo-200 hover:text-foreground dark:hover:border-indigo-900"
             )}
           >
             <span className="block">{item.label}</span>
