@@ -7,6 +7,12 @@ const TABLE_BY_TYPE = {
   Decision: { table: "decision", idColumn: "decision_id" },
   KnowledgeNode: { table: "knowledge_node", idColumn: "knowledge_node_id" },
   UserStory: { table: "user_story", idColumn: "user_story_id" },
+  Epic: { table: "epic", idColumn: "epic_id" },
+  ActionItem: { table: "action_item", idColumn: "action_item_id" },
+  Clarification: { table: "clarification", idColumn: "clarification_id" },
+  ChangeRequest: { table: "change_request", idColumn: "change_request_id" },
+  Guardrail: { table: "guardrail_rule", idColumn: "rule_id" },
+  Document: { table: "project_document", idColumn: "document_id" },
 } as const;
 
 async function loadEmbeddableText(
@@ -38,6 +44,55 @@ async function loadEmbeddableText(
         .eq("user_story_id", objectId)
         .single();
       return data ? `${data.title}${data.description ? `: ${data.description}` : ""}` : null;
+    }
+    case "Epic": {
+      const { data } = await supabase
+        .from("epic")
+        .select("title, business_objective")
+        .eq("epic_id", objectId)
+        .single();
+      return data ? `${data.title}${data.business_objective ? `: ${data.business_objective}` : ""}` : null;
+    }
+    case "ActionItem": {
+      const { data } = await supabase
+        .from("action_item")
+        .select("title, detail")
+        .eq("action_item_id", objectId)
+        .single();
+      return data ? `${data.title}${data.detail ? `: ${data.detail}` : ""}` : null;
+    }
+    case "Clarification": {
+      const { data } = await supabase
+        .from("clarification")
+        .select("question, why_it_matters, answer_text")
+        .eq("clarification_id", objectId)
+        .single();
+      if (!data) return null;
+      return [data.question, data.why_it_matters, data.answer_text].filter(Boolean).join(": ");
+    }
+    case "ChangeRequest": {
+      const { data } = await supabase
+        .from("change_request")
+        .select("title, description")
+        .eq("change_request_id", objectId)
+        .single();
+      return data ? `${data.title}${data.description ? `: ${data.description}` : ""}` : null;
+    }
+    case "Guardrail": {
+      const { data } = await supabase
+        .from("guardrail_rule")
+        .select("rule_name, rule_expression")
+        .eq("rule_id", objectId)
+        .single();
+      return data ? `${data.rule_name}${data.rule_expression ? `: ${data.rule_expression}` : ""}` : null;
+    }
+    case "Document": {
+      const { data } = await supabase
+        .from("project_document")
+        .select("extracted_text")
+        .eq("document_id", objectId)
+        .single();
+      return data?.extracted_text ?? null;
     }
   }
 }

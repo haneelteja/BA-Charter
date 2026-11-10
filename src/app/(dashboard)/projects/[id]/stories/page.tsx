@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createUserStory } from "./actions";
-import { BackLink, Badge, Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,6 @@ export default async function StoriesPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader title="User stories" />
 
       {error && (

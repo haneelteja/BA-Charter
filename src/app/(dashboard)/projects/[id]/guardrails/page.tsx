@@ -7,7 +7,7 @@ import {
   toggleGuardrailRule,
 } from "./actions";
 import { StoryChecker } from "./StoryChecker";
-import { BackLink, Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Button, Card, Field, Input, PageHeader, Select } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,6 @@ export default async function GuardrailsPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader
         title="Guardrails"
         subtitle="Project vocabulary, structure rules, and a checker to test a draft story against them."

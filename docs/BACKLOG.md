@@ -349,9 +349,12 @@ traversal. Build once, reuse three times.
   endpoint) via a CHECK constraint.
 - `/retrieval/search` equivalent: `search_project_embeddings` — a single
   `SECURITY DEFINER` Postgres function unioning ranked results across all
-  four embeddable tables, with an explicit membership check inside (it
+  embeddable tables, with an explicit membership check inside (it
   bypasses RLS to read across tables efficiently, but not the "must be a
   project member" floor every other table enforces) — `search/page.tsx`.
+  Widened from the original 4 types (Utterance/Decision/KnowledgeNode/
+  UserStory) to 10 (migration `0023`, EPIC 19) — Epic/ActionItem/
+  Clarification/ChangeRequest/Guardrail/Document now embed and search too.
 - Re-embedding on edit: not a separate code path — every write point just
   enqueues `embed_object` again, which always overwrites the embedding
   column rather than appending to it.
@@ -681,3 +684,60 @@ already exist elsewhere in the app under different names.
 - RLS: same project-membership floor as every other table (`delivery_partner`,
   `delivery` directly; `delivery_attempt` one join away via `delivery_id`,
   same pattern as `utterance`/`acceptance_criterion`).
+
+---
+
+## EPIC 19 — Project Chat (RAG) & Sidebar Navigation — ✅ implemented
+
+**Why:** Requested directly — a ChatGPT-style conversational interface as the
+project's main screen, answerable from everything in the project (not just
+the 4 types EPIC 10 originally embedded), with every tab reachable from a
+persistent left sidebar instead of the old hub-page card grid.
+
+- **Sidebar restructure**: new `projects/[id]/layout.tsx` renders a
+  persistent left `<nav>` (`ProjectSidebarNav.tsx`, active-tab highlighting
+  via `usePathname()`) across every project tab. The old hub page
+  (`projects/[id]/page.tsx`) is now the Chat page itself; its Members
+  section and Embedding-model config became their own routes,
+  `projects/[id]/members` and `projects/[id]/settings`.
+- **Retrieval widened** (migration `0023`, see EPIC 10 above): Epic,
+  ActionItem, Clarification, ChangeRequest, Guardrail, and the new Document
+  type all gained an `embedding` column and a `search_project_embeddings`
+  union arm. `enqueueEmbedding` calls added at every create/update write
+  point for the 5 newly-embeddable domain types (`epics/actions.ts`,
+  `changes/actions.ts`, `guardrails/actions.ts`, `clarifications/actions.ts`,
+  and the Meeting Ingestion commit path in `minutes-actions.ts` — the latter
+  two previously had no embedding call at all for ActionItem/Clarification).
+- **Document upload** (migration `0022`): a private Supabase Storage bucket
+  (`project-documents`, path convention `{project_id}/{document_id}/
+  {file_name}`, RLS checking the first path segment against
+  `project_member`) plus a `project_document` table. `.txt`/`.md` read
+  directly; `.pdf` via `pdf-parse` (v2's `PDFParse` class API, not the old
+  v1 function-style API); `.docx` via `mammoth` — `src/lib/documents/
+  extractText.ts`. Extraction runs synchronously in the upload action
+  (`documents-actions.ts`) so a bad file fails loudly immediately rather
+  than silently in the background job queue; embedding itself still goes
+  through the async `embed_object` job like everything else.
+- **Chat**: one shared conversation per project (not private per user) —
+  `project_chat_message` (migration `0022`), insert/select-only like
+  `audit_event`. `src/app/api/projects/[id]/chat/route.ts` (a Route
+  Handler, not a Server Action — Next.js only supports returning an
+  arbitrary streaming `Response` from the former) retrieves via the same
+  `searchProject` every tab uses, builds a RAG system prompt
+  (`src/lib/ai/projectChat.ts`), resolves the asking user's own BYOK model
+  (`resolveUserLanguageModel`, EPIC 4's helper — no new provider plumbing),
+  and streams the answer back via the `ai` SDK's `streamText` +
+  `toUIMessageStream`/`createUIMessageStreamResponse` (the client posts the
+  full running conversation each turn — see `ChatPanel.tsx` — so the route
+  never re-reads history from the database itself, only the initial
+  page load does, via `dbRowsToUIMessages`). Client side: `@ai-sdk/react`'s
+  `useChat` (a separate package from `ai` in this installed version — not
+  previously a dependency).
+- Real LLM-generation round trips aren't covered by automated tests, same
+  as every other BYOK AI feature (extraction, guardrails, change analysis)
+  — verify manually. `tests/e2e/project-chat.spec.ts` covers sidebar
+  navigation, document upload (success and unsupported-type paths), and
+  the chat route's auth/membership guards (401/403), all of which don't
+  require a real model call.
+
+**Depends on:** EPIC 4 (BYOK model resolution), EPIC 10 (retrieval).

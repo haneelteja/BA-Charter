@@ -315,6 +315,8 @@ async function commitToCharter(
         .from("extraction_candidate")
         .update({ resulting_object_type: "ActionItem", resulting_object_id: actionItem.action_item_id })
         .eq("candidate_id", candidate.candidate_id);
+
+      await enqueueEmbedding(supabase, projectId, "ActionItem", actionItem.action_item_id, committedBy);
     } else if (candidate.candidate_type === "Clarification") {
       const chasingId = await resolveOwnerUserId(supabase, projectId, candidate.suggested_owner, committedBy);
       const { data: clarification, error: clarificationError } = await supabase
@@ -337,6 +339,8 @@ async function commitToCharter(
         .from("extraction_candidate")
         .update({ resulting_object_type: "Clarification", resulting_object_id: clarification.clarification_id })
         .eq("candidate_id", candidate.candidate_id);
+
+      await enqueueEmbedding(supabase, projectId, "Clarification", clarification.clarification_id, committedBy);
     }
     // Risk / ChangeSignal candidates have no persistent home in the schema
     // (see 0010_extraction_candidates.sql) — they stay recorded as Accepted

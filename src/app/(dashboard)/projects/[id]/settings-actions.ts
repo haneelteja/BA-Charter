@@ -40,5 +40,5 @@ export async function setEmbeddingConfig(projectId: string, formData: FormData) 
     throw new Error(`Failed to update embedding settings: ${error.message}`);
   }
 
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
 }

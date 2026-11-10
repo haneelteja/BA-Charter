@@ -6,6 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { getProjectRole, isLead } from "@/lib/projects/role";
 import { getAgileStudioClient } from "@/lib/agileStudio/client";
+import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
 async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
   const { data: auth } = await supabase.auth.getUser();
@@ -54,6 +55,8 @@ export async function createEpic(projectId: string, formData: FormData) {
     newValue: { title },
   });
 
+  await enqueueEmbedding(supabase, projectId, "Epic", epic.epic_id, user.id);
+
   redirect(`/projects/${projectId}/epics/${epic.epic_id}`);
 }
 
@@ -68,7 +71,7 @@ export async function updateEpic(projectId: string, epicId: string, formData: Fo
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  const user = await requireUser(supabase);
 
   const { error } = await supabase
     .from("epic")
@@ -82,6 +85,8 @@ export async function updateEpic(projectId: string, epicId: string, formData: Fo
     .eq("status", "Draft");
 
   if (error) throw new Error(`Failed to update epic: ${error.message}`);
+
+  await enqueueEmbedding(supabase, projectId, "Epic", epicId, user.id);
 
   revalidatePath(`/projects/${projectId}/epics/${epicId}`);
 }

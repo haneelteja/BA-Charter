@@ -109,6 +109,7 @@ export async function answerClarification(projectId: string, formData: FormData)
   });
 
   await enqueueEmbedding(supabase, projectId, "Decision", decision.decision_id, user.id);
+  await enqueueEmbedding(supabase, projectId, "Clarification", clarificationId, user.id);
 
   revalidatePath(`/projects/${projectId}/clarifications`);
 }

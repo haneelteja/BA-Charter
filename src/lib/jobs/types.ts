@@ -18,7 +18,17 @@ export interface JobPayloadMap {
   extract_candidates: { projectId: string; interactionId: string; userId: string };
   embed_object: {
     projectId: string;
-    objectType: "Utterance" | "Decision" | "KnowledgeNode" | "UserStory";
+    objectType:
+      | "Utterance"
+      | "Decision"
+      | "KnowledgeNode"
+      | "UserStory"
+      | "Epic"
+      | "ActionItem"
+      | "Clarification"
+      | "ChangeRequest"
+      | "Guardrail"
+      | "Document";
     objectId: string;
     userId: string;
   };

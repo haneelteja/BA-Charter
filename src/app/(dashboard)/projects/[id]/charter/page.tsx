@@ -5,7 +5,7 @@ import {
   resolveConflict,
   updateKnowledgeNode,
 } from "./actions";
-import { Badge, BackLink, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +44,6 @@ export default async function CharterPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader title="Charter" subtitle="The structured definition of what this application does, in four layers." />
 
       {(nodesError || conflictsError) && (

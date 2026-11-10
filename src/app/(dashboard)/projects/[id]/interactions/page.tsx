@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createInteraction } from "./actions";
-import { BackLink, Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,6 @@ export default async function InteractionsPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader title="Interactions" subtitle="Transcripts, emails, chats and notes captured for this project." />
 
       {error && (

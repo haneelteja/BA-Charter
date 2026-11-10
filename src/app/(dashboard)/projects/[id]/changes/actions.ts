@@ -96,6 +96,8 @@ export async function createChangeRequest(projectId: string, formData: FormData)
     newValue: { title },
   });
 
+  await enqueueEmbedding(supabase, projectId, "ChangeRequest", changeRequest.change_request_id, user.id);
+
   redirect(`/projects/${projectId}/changes/${changeRequest.change_request_id}`);
 }
 
@@ -109,7 +111,7 @@ export async function updateChangeRequest(projectId: string, changeRequestId: st
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  const user = await requireUser(supabase);
 
   const { error } = await supabase
     .from("change_request")
@@ -117,6 +119,8 @@ export async function updateChangeRequest(projectId: string, changeRequestId: st
     .eq("change_request_id", changeRequestId)
     .eq("status", "Intake");
   if (error) throw new Error(`Failed to update change request: ${error.message}`);
+
+  await enqueueEmbedding(supabase, projectId, "ChangeRequest", changeRequestId, user.id);
 
   revalidatePath(`/projects/${projectId}/changes/${changeRequestId}`);
 }
@@ -588,7 +592,13 @@ export async function reviewProposedEdit(projectId: string, changeRequestId: str
       .eq(idColumn, edit.target_object_id);
     if (applyError) throw new Error(`Failed to apply edit: ${applyError.message}`);
 
-    await enqueueEmbedding(supabase, projectId, edit.target_object_type as "UserStory", edit.target_object_id, user.id);
+    await enqueueEmbedding(
+      supabase,
+      projectId,
+      edit.target_object_type as "Epic" | "UserStory",
+      edit.target_object_id,
+      user.id
+    );
 
     const ref = `PROPAGATE-${changeRequestId.slice(0, 8)}`;
     if (edit.target_object_type === "Epic") {

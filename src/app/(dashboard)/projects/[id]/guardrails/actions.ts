@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveUserLanguageModel } from "@/lib/ai/userModel";
+import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 import {
   evaluateGuardrails,
   type GuardrailFinding,
@@ -65,17 +66,23 @@ export async function createGuardrailRule(projectId: string, formData: FormData)
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  const user = await requireUser(supabase);
 
-  const { error } = await supabase.from("guardrail_rule").insert({
-    project_id: projectId,
-    rule_type: ruleType,
-    rule_name: ruleName,
-    rule_expression: ruleExpression || null,
-    severity,
-    is_active: true,
-  });
+  const { data: rule, error } = await supabase
+    .from("guardrail_rule")
+    .insert({
+      project_id: projectId,
+      rule_type: ruleType,
+      rule_name: ruleName,
+      rule_expression: ruleExpression || null,
+      severity,
+      is_active: true,
+    })
+    .select("rule_id")
+    .single();
   if (error) throw new Error(`Failed to create guardrail rule: ${error.message}`);
+
+  await enqueueEmbedding(supabase, projectId, "Guardrail", rule.rule_id, user.id);
 
   revalidatePath(`/projects/${projectId}/guardrails`);
 }

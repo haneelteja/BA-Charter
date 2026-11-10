@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { ALL_SCOPES, searchProject, type RetrievalScope } from "@/lib/ai/search";
-import { BackLink, Badge, Button, Card, Input, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, Input, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,6 @@ export default async function SearchPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader title="Search" subtitle="Semantic search across everything embedded in this project." />
 
       {!project?.embedding_provider && (

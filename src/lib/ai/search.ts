@@ -9,7 +9,18 @@ export interface RetrievalResult {
   source_utterance_id: string | null;
 }
 
-const ALL_SCOPES = ["Utterance", "Decision", "KnowledgeNode", "UserStory"] as const;
+const ALL_SCOPES = [
+  "Utterance",
+  "Decision",
+  "KnowledgeNode",
+  "UserStory",
+  "Epic",
+  "ActionItem",
+  "Clarification",
+  "ChangeRequest",
+  "Guardrail",
+  "Document",
+] as const;
 export type RetrievalScope = (typeof ALL_SCOPES)[number];
 
 /** /retrieval/search equivalent — embeds the query with the project's fixed embedding model, then ranks across every enabled object type in one query. */

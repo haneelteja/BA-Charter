@@ -10,7 +10,7 @@ import {
   toggleDeliveryPartnerActive,
   updateDeliveryPartnerSla,
 } from "./actions";
-import { Badge, BackLink, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +106,6 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader
         title="Delivery partners"
         subtitle="Configure delivery vendors in priority order, track deliveries, and see per-partner performance."

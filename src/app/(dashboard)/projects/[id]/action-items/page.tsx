@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { cancelActionItem, completeActionItem, startActionItem, verifyActionItem } from "./actions";
-import { BackLink, Badge, Button, Card, Input, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, Input, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,6 @@ export default async function ActionItemsPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink href={`/projects/${projectId}`}>Back to project</BackLink>
       <PageHeader title="Action items" />
 
       {error && (
