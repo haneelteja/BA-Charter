@@ -1,5 +1,3 @@
-import { PDFParse } from "pdf-parse";
-import mammoth from "mammoth";
 import { SUPPORTED_EXTENSIONS } from "./supportedExtensions";
 
 export { SUPPORTED_EXTENSIONS };
@@ -11,6 +9,16 @@ export { SUPPORTED_EXTENSIONS };
  * about what MIME type they attach to a given file (especially .md, which
  * commonly comes through with no type at all), while the extension the
  * user picked is unambiguous.
+ *
+ * pdf-parse/mammoth are imported dynamically (lazily), inside their own
+ * case, rather than statically at the top of this file: a static import
+ * pulls pdf-parse's pdfjs-dist dependency into every bundle that imports
+ * this module at all, and loading it unconditionally crashed every upload
+ * — not just PDFs — with "ReferenceError: DOMMatrix is not defined"
+ * (pdfjs-dist needs a canvas polyfill that isn't present in Vercel's Node
+ * runtime; its optional @napi-rs/canvas dependency didn't install there).
+ * Scoping the import means .txt/.md/.docx uploads never touch pdfjs-dist
+ * at all.
  */
 export async function extractText(file: Blob, fileName: string): Promise<string> {
   const extension = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() : undefined;
@@ -21,6 +29,7 @@ export async function extractText(file: Blob, fileName: string): Promise<string>
       return await file.text();
 
     case "pdf": {
+      const { PDFParse } = await import("pdf-parse");
       const data = new Uint8Array(await file.arrayBuffer());
       const parser = new PDFParse({ data });
       try {
@@ -32,6 +41,7 @@ export async function extractText(file: Blob, fileName: string): Promise<string>
     }
 
     case "docx": {
+      const { default: mammoth } = await import("mammoth");
       const buffer = Buffer.from(await file.arrayBuffer());
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
