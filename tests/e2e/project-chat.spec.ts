@@ -129,12 +129,13 @@ test("document upload: ingests a supported file, rejects an unsupported one", as
 
     const fileInput = page.locator('input[type="file"][name="file"]');
 
+    // Uploads auto-submit on file selection (no separate "Attach file"
+    // button — the composer's "+" button only opens this hidden input).
     await fileInput.setInputFiles({
       name: "diagram.png",
       mimeType: "image/png",
       buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
     });
-    await page.getByRole("button", { name: "Attach file" }).click();
     await expect(page.getByText(/Unsupported file type/)).toBeVisible({ timeout: 15000 });
 
     await fileInput.setInputFiles({
@@ -142,7 +143,6 @@ test("document upload: ingests a supported file, rejects an unsupported one", as
       mimeType: "text/plain",
       buffer: Buffer.from("The project uses OAuth2 for authentication."),
     });
-    await page.getByRole("button", { name: "Attach file" }).click();
     await expect(page.getByText('Uploaded "notes.txt"')).toBeVisible({ timeout: 15000 });
 
     await expect
