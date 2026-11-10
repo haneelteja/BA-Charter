@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole, isLead } from "@/lib/projects/role";
+import { enqueueBackfillEmbeddings } from "@/lib/ai/embeddingBackfill";
 
 /**
  * Embedding model is fixed at project level (EXECUTION_PLAN.md §3.C) —
@@ -39,6 +40,11 @@ export async function setEmbeddingConfig(projectId: string, formData: FormData) 
   if (error) {
     throw new Error(`Failed to update embedding settings: ${error.message}`);
   }
+
+  // Backfill anything created before a model was configured (or still
+  // missing an embedding from a prior failed attempt) — see
+  // embeddingBackfill.ts for why this doesn't happen automatically.
+  await enqueueBackfillEmbeddings(supabase, projectId, auth.user.id);
 
   revalidatePath(`/projects/${projectId}/settings`);
 }
