@@ -341,6 +341,13 @@ traversal. Build once, reuse three times.
   `src/jobs/handlers/embedObject.ts`. Skips enqueueing entirely for a
   project with no embedding model configured, so it's a progressive
   enhancement, not a hard requirement.
+- Backfill (EPIC 19 follow-up, `src/lib/ai/embeddingBackfill.ts`): content
+  created before a project had a model configured was silently never
+  embedded, with no job ever enqueued for it and no later trigger to catch
+  up — found via a production project with an uploaded document stuck at
+  "no embedding, no job." `setEmbeddingConfig` now walks every embeddable
+  table for rows still missing an embedding and enqueues them, every time
+  it's saved (idempotent — only ever enqueues what's actually missing).
 - Embedding generation is per-user BYOK but the *model* is fixed at project
   level (resolved decision, `EXECUTION_PLAN.md` §3.C) — a Lead BA sets
   `embedding_provider`/`embedding_model` on the project page;
