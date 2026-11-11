@@ -748,3 +748,41 @@ persistent left sidebar instead of the old hub-page card grid.
   require a real model call.
 
 **Depends on:** EPIC 4 (BYOK model resolution), EPIC 10 (retrieval).
+
+**Session follow-up (same day)** — three real chat bugs found and fixed via live
+testing against a production project, plus one new feature:
+
+- `cn()` (`src/lib/cn.ts`) was a plain string-joiner with no Tailwind conflict
+  resolution — overriding `Card`'s default `bg-surface` (e.g. the chat user
+  bubble's `bg-indigo-600 text-white`) left both classes in the DOM, and
+  whichever one Tailwind happened to generate later in the stylesheet silently
+  won. Produced literally invisible (white-on-white) message text, including a
+  giant blank card with only a color emoji visible (emoji glyphs ignore CSS
+  `color`). Fixed by routing `cn()` through `tailwind-merge`, which also fixed
+  two previously-unnoticed instances of the same bug shape elsewhere
+  (`bg-amber-50`/`bg-indigo-50` overrides on other pages).
+- The chat route's `streamText()` call was the only one in the codebase with
+  no `maxOutputTokens` cap (every other AI call caps 2048–4096) — defaulted to
+  the model's own max (65536 via OpenRouter), exceeding what a low-credit BYOK
+  key could afford and failing the whole turn with a provider credit error.
+  Capped at 4096.
+- `src/app/api/projects/[id]/chat/route.ts` previously let `onError` default
+  to the AI SDK's generic `"An error occurred."` and had no try/catch around
+  pre-stream calls (retrieval, BYOK model resolution) — real, specific,
+  user-actionable errors from both (including the credit-limit error above)
+  were being silently discarded. Now caught and surfaced verbatim.
+- Chat UX: auto-scroll now only follows new content while the user is already
+  at the bottom (no longer yanks the view during a long reply if they've
+  scrolled up to read), with a floating "New answer ↓" pill when a reply
+  finishes while scrolled away (`ChatPanel.tsx`).
+- **New: Chat → Interaction bridge.** Any user chat message over ~300
+  characters gets a "save as a meeting interaction" action. It runs a new
+  LLM-based cleaner (`src/lib/ai/transcriptCleaner.ts`) to strip UI chrome out
+  of a raw paste (nav labels, "Has context menu", reaction-count summaries,
+  quoted-reply duplication — the kind of noise a raw Teams chat export
+  carries, which `parseUtterances` was never built to handle), creates a real
+  `interaction` row from the cleaned result, and auto-triggers extraction
+  (`src/app/(dashboard)/projects/[id]/interaction-from-chat-actions.ts`) —
+  landing the user on the same human-reviewed confirm/generate-minutes flow
+  every other interaction goes through, so nothing reaches official records
+  (including Minutes of meetings) unreviewed.
