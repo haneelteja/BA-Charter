@@ -114,6 +114,23 @@ test("every major authenticated page has no detectable WCAG 2.1 A/AA violations"
 
     await admin.from("delivery_partner").insert({ project_id: projectId, name: "Acme Logistics", priority_order: 1 });
 
+    const { data: flowDiagram } = await admin
+      .from("flow_diagram")
+      .insert({
+        project_id: projectId,
+        title: "Happy path",
+        content: {
+          nodes: [
+            { id: "n1", type: "shape", position: { x: 100, y: 100 }, data: { shape: "rectangle", label: "Start" } },
+            { id: "n2", type: "shape", position: { x: 400, y: 100 }, data: { shape: "circle", label: "Decision" } },
+          ],
+          edges: [{ id: "e1", source: "n1", target: "n2", data: { lineStyle: "solid", startArrow: false, endArrow: true } }],
+        },
+      })
+      .select("diagram_id")
+      .single();
+    const flowDiagramId = flowDiagram!.diagram_id;
+
     await page.goto("/sign-in");
     const passwordForm = page.locator("form", { has: page.getByRole("button", { name: "Sign in" }) });
     await passwordForm.locator('input[name="email"]').fill(userResult!.user!.email!);
@@ -136,6 +153,8 @@ test("every major authenticated page has no detectable WCAG 2.1 A/AA violations"
       ["Changes list", `/projects/${projectId}/changes`],
       ["Change detail", `/projects/${projectId}/changes/${changeRequestId}`],
       ["Guardrails", `/projects/${projectId}/guardrails`],
+      ["Flow diagrams list", `/projects/${projectId}/flow`],
+      ["Flow diagram editor", `/projects/${projectId}/flow/${flowDiagramId}`],
       ["Search", `/projects/${projectId}/search`],
       ["Delivery partners", `/projects/${projectId}/delivery`],
       ["Settings", "/settings"],
