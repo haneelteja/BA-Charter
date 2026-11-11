@@ -6,8 +6,17 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Card } from "@/components/ui";
 import { uploadDocument, type UploadDocumentResult } from "./documents-actions";
+import { createInteractionFromChatMessage } from "./interaction-from-chat-actions";
 import { SUPPORTED_EXTENSIONS } from "@/lib/documents/supportedExtensions";
 import type { ChatFileUIPart, ChatTextPart, ChatUIMessage } from "@/lib/ai/projectChat";
+
+/** Below this, a pasted message reads as an ordinary question rather than a dumped transcript/document worth offering to save. */
+const TRANSCRIPT_LENGTH_THRESHOLD = 300;
+
+type InteractionSaveState =
+  | { status: "pending" }
+  | { status: "success"; interactionId: string; title: string }
+  | { status: "error"; error: string };
 
 /**
  * A folder's relative path, as the browser reports it on each selected
@@ -166,6 +175,20 @@ export function ChatPanel({
 
   const [input, setInput] = useState("");
   const isBusy = status === "submitted" || status === "streaming";
+
+  const [interactionSaves, setInteractionSaves] = useState<Record<string, InteractionSaveState>>({});
+
+  async function handleSaveAsInteraction(message: ChatUIMessage) {
+    const text = messageText(message);
+    setInteractionSaves((prev) => ({ ...prev, [message.id]: { status: "pending" } }));
+    const result = await createInteractionFromChatMessage(projectId, text);
+    setInteractionSaves((prev) => ({
+      ...prev,
+      [message.id]: result.ok
+        ? { status: "success", interactionId: result.interactionId, title: result.title }
+        : { status: "error", error: result.error },
+    }));
+  }
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Grows the composer with the content, up to a cap — past that it scrolls
@@ -358,32 +381,67 @@ export function ChatPanel({
             </p>
           ) : (
             <ul className="flex flex-col gap-4">
-              {messages.map((m) => (
-                <li key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                  <Card
-                    className={
-                      m.role === "user"
-                        ? "max-w-[80%] border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950"
-                        : "max-w-[80%]"
-                    }
-                  >
-                    {messageImages(m).length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        {messageImages(m).map((f, i) => (
-                          // eslint-disable-next-line @next/next/no-img-element -- data: / blob: URLs, not a static asset next/image can optimize
-                          <img
-                            key={i}
-                            src={f.url}
-                            alt={f.filename ?? "Pasted image"}
-                            className="max-h-48 rounded-lg border border-surface-border"
-                          />
+              {messages.map((m) => {
+                const text = messageText(m);
+                const offerSaveAsInteraction = m.role === "user" && text.trim().length > TRANSCRIPT_LENGTH_THRESHOLD;
+                const saveState = interactionSaves[m.id];
+
+                return (
+                  <li key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                    <div className={`flex max-w-[80%] flex-col gap-1 ${m.role === "user" ? "items-end" : "items-start"}`}>
+                      <Card
+                        className={
+                          m.role === "user"
+                            ? "border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950"
+                            : undefined
+                        }
+                      >
+                        {messageImages(m).length > 0 && (
+                          <div className="mb-2 flex flex-wrap gap-2">
+                            {messageImages(m).map((f, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element -- data: / blob: URLs, not a static asset next/image can optimize
+                              <img
+                                key={i}
+                                src={f.url}
+                                alt={f.filename ?? "Pasted image"}
+                                className="max-h-48 rounded-lg border border-surface-border"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {text && <p className="whitespace-pre-wrap text-sm">{text}</p>}
+                      </Card>
+
+                      {offerSaveAsInteraction &&
+                        (saveState?.status === "success" ? (
+                          <Link
+                            href={`/projects/${projectId}/interactions/${saveState.interactionId}`}
+                            className="px-1 text-xs font-medium text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
+                          >
+                            Saved as &quot;{saveState.title}&quot; — extraction started, review →
+                          </Link>
+                        ) : saveState?.status === "error" ? (
+                          <span className="px-1 text-xs text-red-700 dark:text-red-400">{saveState.error}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAsInteraction(m)}
+                            disabled={saveState?.status === "pending"}
+                            className="flex items-center gap-1 px-1 text-xs text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {saveState?.status === "pending" ? (
+                              <>
+                                <Spinner /> Cleaning up and saving as an interaction…
+                              </>
+                            ) : (
+                              "📋 Looks like a transcript — save as a meeting interaction"
+                            )}
+                          </button>
                         ))}
-                      </div>
-                    )}
-                    {messageText(m) && <p className="whitespace-pre-wrap text-sm">{messageText(m)}</p>}
-                  </Card>
-                </li>
-              ))}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
