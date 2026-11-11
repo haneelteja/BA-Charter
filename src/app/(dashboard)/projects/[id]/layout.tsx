@@ -23,6 +23,7 @@ const NAV_ITEMS: ProjectNavItem[] = [
   { href: "stories", label: "Stories", hint: "User stories" },
   { href: "changes", label: "Change requests", hint: "Impact analysis" },
   { href: "guardrails", label: "Guardrails", hint: "Quality rules" },
+  { href: "flow", label: "Flow Diagrams", hint: "Process flows" },
   { href: "search", label: "Search", hint: "Semantic retrieval" },
   { href: "delivery", label: "Delivery partners", hint: "Vendors & analytics" },
   { href: "members", label: "Members", hint: "Project team" },

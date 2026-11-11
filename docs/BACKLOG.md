@@ -791,3 +791,60 @@ testing against a production project, plus one new feature:
   landing the user on the same human-reviewed confirm/generate-minutes flow
   every other interaction goes through, so nothing reaches official records
   (including Minutes of meetings) unreviewed.
+
+---
+
+## EPIC 20 — Flow Diagrams — ✅ implemented
+
+**Why:** Requested directly — a freeform diagramming canvas per project (a
+"magnet board": shapes on a snap-to-grid dotted canvas, connected by styled
+lines), usable both as a blank whiteboard and as a starting point generated
+from existing project data.
+
+- New `flow_diagram` table (migration `0025`): `project_id`, `title`, a
+  single `content jsonb` blob holding React Flow's own `{nodes, edges}`
+  shape rather than normalized node/edge tables (nothing needs to query an
+  individual shape/connector outside of loading the whole diagram at once),
+  `created_by`, timestamps. RLS: same project-membership floor as every
+  other project-scoped table.
+- New sidebar tab, `projects/[id]/flow` — list of saved diagrams, "+ New
+  diagram" with two entry points: a blank canvas, or "Seed from project
+  data" (`createSeededDiagram`, `flow/actions.ts`) — one rectangle node per
+  Epic, plus one circle (Decision) or square (Knowledge node) per object
+  it's `trace_link`-connected to, laid out as a simple two-column grid with
+  an edge per trace_link labeled by its `link_type`. Not a generic
+  graph-layout engine — just enough structure to give the user a real
+  starting point they then rearrange and extend freely.
+- Editor (`flow/[diagramId]/`, built on `@xyflow/react`/React Flow):
+  - `ShapeNode.tsx` — one custom node type covering all four requested
+    shapes (circle/square/rectangle/triangle via CSS, triangle via
+    `clip-path`), each with an inline editable `<textarea>` label
+    (`useReactFlow().updateNodeData`) and a `Handle` on every side, all
+    typed `source` with the canvas's `connectionMode="loose"` so any side
+    can both start and receive a connection.
+  - Edges stay the library's default (bezier) type — no custom edge
+    renderer — with `data.lineStyle`/`startArrow`/`endArrow` driving
+    `style.strokeDasharray` and `markerStart`/`markerEnd` (`MarkerType.
+    ArrowClosed`) computed fresh on every change via a small pure
+    `edgeVisualProps` helper, so the saved `data` always stays the single
+    source of truth. Selecting an edge surfaces a floating toolbar
+    (solid/dashed/dotted, start/end arrow toggles, delete) covering every
+    line style requested (dotted, hyphen/dashed, arrow, double arrow).
+  - "Magnet board" look: `<Background variant={BackgroundVariant.Dots}>`
+    plus `snapToGrid`/`snapGrid={[16, 16]}`.
+  - Explicit Save (not autosave, matching this app's existing pattern of
+    explicit save actions elsewhere) persists `{title, content}` back to
+    `flow_diagram` via `saveDiagram`.
+- No design-system reference was available to match pixel-for-pixel (none
+  was provided) — built to this app's own existing visual language instead
+  (`Card`/surface/indigo-accent tokens, light/dark theme).
+- `tests/e2e/flow-diagrams.spec.ts` covers create → add a shape → edit its
+  label → save → reload → confirm persistence → delete, against a real
+  browser and a real database. Deliberately doesn't drive a pointer-drag
+  connection between two shapes — that interaction is React Flow's own
+  well-tested code, not this app's, and reliably driving a drag onto a
+  specific SVG handle under Playwright is disproportionately fragile for
+  what it would verify.
+
+**Depends on:** EPIC 1 (membership/RLS), EPIC 8 (epics + trace_link seeding
+source).

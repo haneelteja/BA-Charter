@@ -31,6 +31,7 @@ const OBJECT_LABEL: Record<string, string> = {
   Interaction: "an interaction",
   MinutesDocument: "meeting minutes",
   Document: "a document",
+  FlowDiagram: "a flow diagram",
 };
 
 function describeEvent(eventType: string, targetObjectType: string | null): string {
