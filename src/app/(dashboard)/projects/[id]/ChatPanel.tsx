@@ -317,7 +317,7 @@ export function ChatPanel({
                 <Card
                   className={
                     m.role === "user"
-                      ? "max-w-[80%] border-indigo-600 bg-indigo-600 text-white"
+                      ? "max-w-[80%] border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950"
                       : "max-w-[80%]"
                   }
                 >
