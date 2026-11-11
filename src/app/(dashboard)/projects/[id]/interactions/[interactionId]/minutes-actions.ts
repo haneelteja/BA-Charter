@@ -25,19 +25,24 @@ async function requireUser(supabase: Supa) {
 
 /**
  * §8 rule 8: action items and clarifications must resolve to a named
- * person, but extraction only produces a free-text suggestedOwner. There's
- * no fuzzy-matching UI yet, so this tries an exact case-insensitive match
- * against project members' full names and otherwise falls back to whoever
- * is running the commit (the approving Lead BA) — a safe default that keeps
- * the NOT NULL/CHECK constraints satisfied, not a real resolution step.
- * Revisit once there's a proper owner-assignment UI.
+ * person. The Confirm-stage accept form (page.tsx) now lets a BA pick the
+ * real project member directly, stored on
+ * `extraction_candidate.resolved_owner_user_id` — that's used here whenever
+ * present. Older candidates accepted before that picker existed (or left
+ * unassigned) only have the free-text `suggestedOwner` extraction produced,
+ * so those still fall back to an exact case-insensitive name match against
+ * project members, and finally to whoever is running the commit (the
+ * approving Lead BA) if nothing resolves — a safe default that keeps the
+ * NOT NULL/CHECK constraints satisfied.
  */
 async function resolveOwnerUserId(
   supabase: Supa,
   projectId: string,
+  resolvedOwnerUserId: string | null,
   suggestedOwner: string | null,
   fallbackUserId: string
 ): Promise<string> {
+  if (resolvedOwnerUserId) return resolvedOwnerUserId;
   if (!suggestedOwner) return fallbackUserId;
 
   const { data: memberRows } = await supabase
@@ -293,7 +298,13 @@ async function commitToCharter(
 
       await enqueueEmbedding(supabase, projectId, "Decision", decision.decision_id, committedBy);
     } else if (candidate.candidate_type === "ActionItem") {
-      const ownerId = await resolveOwnerUserId(supabase, projectId, candidate.suggested_owner, committedBy);
+      const ownerId = await resolveOwnerUserId(
+        supabase,
+        projectId,
+        candidate.resolved_owner_user_id,
+        candidate.suggested_owner,
+        committedBy
+      );
       const { data: actionItem, error: actionError } = await supabase
         .from("action_item")
         .insert({
@@ -318,7 +329,13 @@ async function commitToCharter(
 
       await enqueueEmbedding(supabase, projectId, "ActionItem", actionItem.action_item_id, committedBy);
     } else if (candidate.candidate_type === "Clarification") {
-      const chasingId = await resolveOwnerUserId(supabase, projectId, candidate.suggested_owner, committedBy);
+      const chasingId = await resolveOwnerUserId(
+        supabase,
+        projectId,
+        candidate.resolved_owner_user_id,
+        candidate.suggested_owner,
+        committedBy
+      );
       const { data: clarification, error: clarificationError } = await supabase
         .from("clarification")
         .insert({

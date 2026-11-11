@@ -37,7 +37,7 @@ export async function triggerExtraction(projectId: string, interactionId: string
 export async function acceptCandidate(projectId: string, interactionId: string, formData: FormData) {
   const candidateId = String(formData.get("candidate_id") ?? "");
   const statement = String(formData.get("statement") ?? "").trim();
-  const suggestedOwner = String(formData.get("suggested_owner") ?? "").trim();
+  const resolvedOwnerUserId = String(formData.get("resolved_owner_user_id") ?? "").trim() || null;
 
   const supabase = await getSupabaseServerClient();
   const user = await requireUser(supabase);
@@ -60,7 +60,7 @@ export async function acceptCandidate(projectId: string, interactionId: string, 
     .update({
       status: "Accepted",
       statement: statement || undefined,
-      suggested_owner: suggestedOwner || null,
+      resolved_owner_user_id: resolvedOwnerUserId,
       decided_by: user.id,
       decided_at: new Date().toISOString(),
     })

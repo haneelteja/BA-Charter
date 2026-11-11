@@ -189,11 +189,16 @@ primary day-to-day workflow.
   `approveAndDistribute`):
   - Decisions written as `Provisional` (§8 rule 3) with supersession links
     when a candidate resolved a contradiction
-  - Action items/clarifications need a resolved owner (§8 rule 8) but
-    extraction only gives free-text `suggestedOwner` — exact case-insensitive
-    name match against project members, else falls back to the committing
-    Lead BA. Noted in code as a placeholder pending a real
-    owner-assignment UI.
+  - Action items/clarifications need a resolved owner (§8 rule 8). **Real
+    owner-assignment UI added** (migration `0024`,
+    `extraction_candidate.resolved_owner_user_id`): the Confirm-stage accept
+    form now has a real project-member `<select>` (pre-selected when
+    extraction's free-text `suggestedOwner` exact-matches a member, so the
+    BA sees and can correct the guess instead of it happening invisibly),
+    defaulting to "Unassigned — resolve at commit". `commitToCharter` prefers
+    that resolved id; only candidates left Unassigned (or accepted before
+    this shipped) fall back to the old exact-name-match-or-committing-Lead-BA
+    behavior.
   - Acknowledgement window scheduled via the job queue
     (`promote_provisional_decisions`, `run_after` = now + `mom_ack_window_hours`)
   - Dispute handling (`disputeMinutes`): reverts affected decisions to

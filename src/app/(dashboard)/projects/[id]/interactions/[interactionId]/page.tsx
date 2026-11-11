@@ -20,7 +20,7 @@ import {
   generateMinutes,
   updateMinutes,
 } from "./minutes-actions";
-import { BackLink, Badge, Card, Input, PageHeader, SubmitButton, Textarea } from "@/components/ui";
+import { BackLink, Badge, Card, Input, PageHeader, Select, SubmitButton, Textarea } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -256,9 +256,33 @@ export default async function InteractionDetailPage({
                     <form action={acceptForInteraction} className="mt-2 flex flex-col gap-2">
                       <input type="hidden" name="candidate_id" value={c.candidate_id} />
                       <Textarea name="statement" aria-label="Statement" defaultValue={c.statement} rows={2} className="text-xs" />
-                      {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (
-                        <Input name="suggested_owner" defaultValue={c.suggested_owner ?? ""} placeholder="Owner name" className="text-xs" />
-                      )}
+                      {c.candidate_type !== "Risk" && c.candidate_type !== "ChangeSignal" && (() => {
+                        const suggestedMatch = c.suggested_owner
+                          ? (members ?? []).find(
+                              (m) => m.full_name?.trim().toLowerCase() === c.suggested_owner?.trim().toLowerCase()
+                            )
+                          : undefined;
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <Select
+                              name="resolved_owner_user_id"
+                              aria-label="Owner"
+                              defaultValue={suggestedMatch?.user_id ?? ""}
+                              className="text-xs"
+                            >
+                              <option value="">Unassigned — resolve at commit</option>
+                              {(members ?? []).map((m) => (
+                                <option key={m.user_id} value={m.user_id}>
+                                  {m.full_name ?? m.email}
+                                </option>
+                              ))}
+                            </Select>
+                            {c.suggested_owner && (
+                              <span className="text-[11px] text-muted">AI suggested: {c.suggested_owner}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <div className="flex gap-2">
                         <SubmitButton variant="primary" size="sm" pendingLabel="Accepting…">
                           Accept
