@@ -86,7 +86,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return new Response(message, { status: 500 });
   }
 
-  const result = streamText({ model, instructions, messages: modelMessages });
+  // Every other AI call in this codebase caps output tokens (2048-4096) —
+  // this one didn't, so it defaulted to the model's own max (e.g. 65536 via
+  // OpenRouter), which can exceed what a BYOK key's remaining credit can
+  // afford and fail the whole turn before a single token streams back.
+  const result = streamText({ model, instructions, messages: modelMessages, maxOutputTokens: 4096 });
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
