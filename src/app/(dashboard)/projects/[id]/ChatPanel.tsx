@@ -179,6 +179,51 @@ export function ChatPanel({
     el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_HEIGHT_PX)}px`;
   }, [input]);
 
+  // Auto-scroll only follows new content when the user is already at (or
+  // very near) the bottom — if they've scrolled up to re-read earlier
+  // messages, new tokens streaming in must not yank the view back down.
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [newAnswerAvailable, setNewAnswerAvailable] = useState(false);
+  const AT_BOTTOM_THRESHOLD_PX = 80;
+  const prevStatusRef = useRef(status);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    function handleScroll() {
+      if (!el) return;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < AT_BOTTOM_THRESHOLD_PX;
+      setIsAtBottom(atBottom);
+      if (atBottom) setNewAnswerAvailable(false);
+    }
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el || !isAtBottom) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, isAtBottom]);
+
+  // Surfaces a "new answer" notification when a reply finishes streaming
+  // while the user has scrolled away, since the auto-scroll above
+  // deliberately won't pull them back down in that case.
+  useEffect(() => {
+    if (prevStatusRef.current === "streaming" && status === "ready" && !isAtBottom) {
+      setNewAnswerAvailable(true);
+    }
+    prevStatusRef.current = status;
+  }, [status, isAtBottom]);
+
+  function scrollToBottom() {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setNewAnswerAvailable(false);
+  }
+
   const [pendingImage, setPendingImage] = useState<File | null>(null);
   const [pendingImagePreviewUrl, setPendingImagePreviewUrl] = useState<string | null>(null);
 
@@ -304,45 +349,57 @@ export function ChatPanel({
           .
         </p>
       )}
-      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
-          <p className="mt-10 text-center text-sm text-muted">
-            Ask anything about this project — the charter, interactions, epics, stories,
-            clarifications, change requests, guardrails, and anything you upload below.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-4">
-            {messages.map((m) => (
-              <li key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <Card
-                  className={
-                    m.role === "user"
-                      ? "max-w-[80%] border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950"
-                      : "max-w-[80%]"
-                  }
-                >
-                  {messageImages(m).length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      {messageImages(m).map((f, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- data: / blob: URLs, not a static asset next/image can optimize
-                        <img
-                          key={i}
-                          src={f.url}
-                          alt={f.filename ?? "Pasted image"}
-                          className="max-h-48 rounded-lg border border-surface-border"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {messageText(m) && <p className="whitespace-pre-wrap text-sm">{messageText(m)}</p>}
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="relative min-h-0 flex-1">
+        <div ref={messagesContainerRef} className="scrollbar-thin h-full overflow-y-auto">
+          {messages.length === 0 ? (
+            <p className="mt-10 text-center text-sm text-muted">
+              Ask anything about this project — the charter, interactions, epics, stories,
+              clarifications, change requests, guardrails, and anything you upload below.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {messages.map((m) => (
+                <li key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                  <Card
+                    className={
+                      m.role === "user"
+                        ? "max-w-[80%] border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950"
+                        : "max-w-[80%]"
+                    }
+                  >
+                    {messageImages(m).length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {messageImages(m).map((f, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element -- data: / blob: URLs, not a static asset next/image can optimize
+                          <img
+                            key={i}
+                            src={f.url}
+                            alt={f.filename ?? "Pasted image"}
+                            className="max-h-48 rounded-lg border border-surface-border"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {messageText(m) && <p className="whitespace-pre-wrap text-sm">{messageText(m)}</p>}
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        {status === "submitted" && <p className="mt-3 text-sm text-muted">Thinking…</p>}
-        {error && <p className="mt-3 text-sm text-red-700 dark:text-red-400">{error.message}</p>}
+          {status === "submitted" && <p className="mt-3 text-sm text-muted">Thinking…</p>}
+          {error && <p className="mt-3 text-sm text-red-700 dark:text-red-400">{error.message}</p>}
+        </div>
+
+        {newAnswerAvailable && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-colors hover:bg-indigo-500"
+          >
+            New answer ↓
+          </button>
+        )}
       </div>
 
       <div className="mt-4 shrink-0">
