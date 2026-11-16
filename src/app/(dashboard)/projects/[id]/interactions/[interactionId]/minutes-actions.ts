@@ -12,6 +12,7 @@ import { enqueueJob } from "@/lib/jobs/enqueue";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 import { generateAckToken } from "@/lib/minutes/ackToken";
 import { revertMinutesDispute } from "@/lib/minutes/dispute";
+import { resolveOwnerUserId } from "@/lib/minutes/resolveOwner";
 
 type Supa = Awaited<ReturnType<typeof getSupabaseServerClient>>;
 
@@ -21,44 +22,6 @@ async function requireUser(supabase: Supa) {
     throw new Error("Not signed in.");
   }
   return auth.user;
-}
-
-/**
- * §8 rule 8: action items and clarifications must resolve to a named
- * person. The Confirm-stage accept form (page.tsx) now lets a BA pick the
- * real project member directly, stored on
- * `extraction_candidate.resolved_owner_user_id` — that's used here whenever
- * present. Older candidates accepted before that picker existed (or left
- * unassigned) only have the free-text `suggestedOwner` extraction produced,
- * so those still fall back to an exact case-insensitive name match against
- * project members, and finally to whoever is running the commit (the
- * approving Lead BA) if nothing resolves — a safe default that keeps the
- * NOT NULL/CHECK constraints satisfied.
- */
-async function resolveOwnerUserId(
-  supabase: Supa,
-  projectId: string,
-  resolvedOwnerUserId: string | null,
-  suggestedOwner: string | null,
-  fallbackUserId: string
-): Promise<string> {
-  if (resolvedOwnerUserId) return resolvedOwnerUserId;
-  if (!suggestedOwner) return fallbackUserId;
-
-  const { data: memberRows } = await supabase
-    .from("project_member")
-    .select("user_id")
-    .eq("project_id", projectId);
-  const memberIds = (memberRows ?? []).map((m) => m.user_id);
-  if (memberIds.length === 0) return fallbackUserId;
-
-  const { data: matches } = await supabase
-    .from("app_user")
-    .select("user_id, full_name")
-    .in("user_id", memberIds)
-    .ilike("full_name", suggestedOwner.trim());
-
-  return matches && matches.length === 1 ? matches[0].user_id : fallbackUserId;
 }
 
 export async function generateMinutes(projectId: string, interactionId: string) {
