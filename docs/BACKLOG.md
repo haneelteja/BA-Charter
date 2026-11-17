@@ -34,7 +34,13 @@ a deployable shell.
 
 ---
 
-## EPIC 1 — Identity, Projects & Membership — ✅ implemented (Phase 0)
+## EPIC 1 — Identity, Projects & Membership — 🟡 partly implemented (Phase 0)
+
+> **Status correction (security review, Nov 2026):** project creation, RLS and
+> BYOK settings exist, but there is no UI to invite members, change roles or
+> remove members (the members page is read-only), and the Seed, Configure and
+> Activate stages of Project Setup are not built. Role rules are now enforced
+> in the database (migration 0026), not only in server actions.
 **Why:** Every object in the system is project-scoped; nothing is visible without
 membership and role.
 **Traces to:** §2 Personas, §3.1 Project Setup, `project` / `app_user` /
@@ -410,7 +416,11 @@ index as it's created).
   or Lead," unlike Epic review which is Lead-only); approve or
   return-for-rework, which correctly re-enters Check per the spec (status
   goes back to an editable state, not all the way to Draft).
-- **Publish**: §8 rule 5 hard gate enforced — blocked without at least one
+- **Publish** (corrected in migration 0026 / Nov 2026 security pass: the
+  original gate counted a link to *any* decision, including Provisional ones,
+  and any member could publish; it now requires a Lead and a link to a
+  **Confirmed** decision, in both the action and a database trigger):
+  §8 rule 5 hard gate enforced — blocked without at least one
   `Implements` trace link to a confirmed decision, verified against the
   live database (both the blocked and unblocked paths). Calls the same
   EPIC 14 stub client as Epic publish.
@@ -848,3 +858,57 @@ from existing project data.
 
 **Depends on:** EPIC 1 (membership/RLS), EPIC 8 (epics + trace_link seeding
 source).
+
+---
+
+## Security hardening — ✅ implemented (Nov 2026)
+
+From the full-codebase security review. Every item has a regression test.
+
+- **Stored XSS in minutes**: `body_html` is sanitised with an allowlist on
+  write and on every render (app page, public `/minutes/[token]`, email) —
+  `src/lib/html/sanitizeMinutes.ts`.
+- **Open redirect / `javascript:` on `/auth/confirm`**: `?next=` accepts only
+  same-origin paths — `src/lib/safeRedirect.ts`.
+- **Database-enforced roles** (`supabase/migrations/0026_security_hardening.sql`):
+  - job-queue RPCs are callable only by `service_role` (anyone with the anon
+    key could read and cancel jobs);
+  - DeliveryMember is read-only, except updating action items they own;
+  - glossary and guardrail rules, conflict resolution and project settings
+    are Lead/Administrator only;
+  - triggers enforce story, epic, minutes and decision transitions (no
+    self-review unless Lead, no review outside InReview, Lead-only publish
+    with a Confirmed decision, no direct Provisional → Confirmed, Lead-only
+    supersede, minutes editable only in Draft/InReview, disputes only inside
+    the acknowledgement window);
+  - a project always keeps at least one Lead/Administrator;
+  - `app_user` is visible only to yourself and people you share a project with.
+- **Minutes acknowledgement links**: tokens are stored as SHA-256 hashes, expire
+  after 30 days, and disputes are refused after the window
+  (`minutes_document.ack_window_ends_at`); a dispute only reopens candidates
+  whose decision was actually reverted.
+- **Emailed links** use `APP_BASE_URL`, never request headers; minutes can only
+  be sent to project members and stakeholders (max 50), and only once.
+- **Server actions** check role through `requireProjectAccess`
+  (`src/lib/projects/access.ts`), and the story, minutes, speaker-mapping and
+  diagram writes are scoped to the URL's project.
+- **Uploads**: auth before parsing, 10 MB cap, extension + magic-byte check,
+  safe storage names, 30 s parse timeout, extracted-text cap.
+- **Chat**: request schema (text and inline images only, no remote URLs, size
+  caps, no client-supplied system messages), history read from the database,
+  10 turns/minute per user, retrieved context fenced as untrusted data.
+- **Other**: saved diagrams validated against a schema; constant-time cron
+  secret check; retention purge also clears utterance embeddings and
+  unreviewed candidate text; security headers (CSP, frame-ancestors, HSTS,
+  no-referrer and no-store on `/minutes/*`); `next` 16.4.5, `zod` 4.6.7,
+  `undici` 7.30.1 (production `npm audit` clean); CI runs the audit and the
+  database tests.
+- **Database tests**: `supabase/tests/run.sh` applies every migration to a
+  plain Postgres 16 + pgvector and runs 45 role/exploit checks
+  (`security.test.sql`); 23 of the original checks fail without 0026.
+
+**Still open** (not in this pass): login CSRF through attacker-supplied auth
+tokens on `/auth/confirm` (needs a "continue as …" confirmation step);
+disabling open sign-up (a Supabase Auth setting, not app code); per-finding
+guardrail dismissal; and the remaining items in the hardening prompt
+(job-lock recovery, transactional distribution, more frequent cron).
