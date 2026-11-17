@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 import { processPendingJobs } from "@/lib/jobs/processQueue";
@@ -12,9 +13,15 @@ import { requireEnv } from "@/lib/env";
  * time, with no guarantee any user action happens to enqueue something
  * else after it becomes due.
  */
+/** Constant-time comparison, so response timing doesn't reveal how much of a guessed secret matched. */
+function isAuthorized(header: string | null, secret: string): boolean {
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const actual = Buffer.from(header ?? "");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${requireEnv("CRON_SECRET")}`) {
+  if (!isAuthorized(request.headers.get("authorization"), requireEnv("CRON_SECRET"))) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

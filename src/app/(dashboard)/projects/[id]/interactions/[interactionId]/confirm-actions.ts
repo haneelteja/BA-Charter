@@ -1,23 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { getProjectRole, isLead } from "@/lib/projects/role";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 /** §3.2 stage 2 — enqueued so the 15-minute SLA has room for a long transcript. */
 export async function triggerExtraction(projectId: string, interactionId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   await enqueueJob("extract_candidates", { projectId, interactionId, userId: user.id });
 
@@ -40,7 +34,7 @@ export async function acceptCandidate(projectId: string, interactionId: string, 
   const resolvedOwnerUserId = String(formData.get("resolved_owner_user_id") ?? "").trim() || null;
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: candidate, error: fetchError } = await supabase
     .from("extraction_candidate")
@@ -86,7 +80,7 @@ export async function rejectCandidate(projectId: string, interactionId: string, 
   const candidateId = String(formData.get("candidate_id") ?? "");
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("extraction_candidate")
@@ -114,7 +108,7 @@ export async function revertCandidate(projectId: string, interactionId: string, 
   const candidateId = String(formData.get("candidate_id") ?? "");
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("extraction_candidate")
@@ -151,7 +145,7 @@ export async function resolveContradiction(projectId: string, interactionId: str
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const role = await getProjectRole(supabase, projectId, user.id);
   if (!isLead(role)) {
@@ -213,7 +207,7 @@ export async function mergeCandidates(projectId: string, interactionId: string, 
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: candidates, error: fetchError } = await supabase
     .from("extraction_candidate")
@@ -297,7 +291,7 @@ export async function splitCandidate(projectId: string, interactionId: string, f
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: original, error: fetchError } = await supabase
     .from("extraction_candidate")
@@ -360,7 +354,7 @@ export async function splitCandidate(projectId: string, interactionId: string, f
  */
 export async function confirmInteraction(projectId: string, interactionId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { count, error } = await supabase
     .from("extraction_candidate")

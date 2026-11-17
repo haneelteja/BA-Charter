@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { expect, test } from "@playwright/test";
 import { deleteTestProject, getAdminClient } from "./helpers/supabase-admin";
+import { hashAckToken } from "../../src/lib/minutes/ackToken";
 
 /**
  * Covers the public tokenized minutes ack/dispute page (EPIC 5 follow-up):
@@ -91,7 +92,7 @@ test("the public minutes-ack link lets an external recipient acknowledge, then d
 
     const { error: recipientError } = await admin
       .from("minutes_recipient")
-      .insert({ minutes_id: minutesId, email: recipientEmail, ack_token: ackToken });
+      .insert({ minutes_id: minutesId, email: recipientEmail, ack_token_hash: hashAckToken(ackToken) });
     expect(recipientError).toBeNull();
 
     // No sign-in at all — this is the whole point of the public link.
@@ -159,4 +160,111 @@ test("the public minutes-ack link lets an external recipient acknowledge, then d
 test("an invalid token shows a clear message instead of leaking any data", async ({ page }) => {
   await page.goto(`/minutes/${randomBytes(32).toString("base64url")}`);
   await expect(page.getByText("This link is invalid or has expired.")).toBeVisible();
+});
+
+test("once the acknowledgement window has closed, the public link no longer accepts a dispute", async ({ page }) => {
+  const admin = getAdminClient();
+  const { data: userResult, error: createErr } = await admin.auth.admin.createUser({
+    email: `e2e-minutes-window-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+    password: "MinutesAckTest7!",
+    email_confirm: true,
+  });
+  expect(createErr).toBeNull();
+  const leadUserId = userResult!.user!.id;
+  const ackToken = randomBytes(32).toString("base64url");
+  let projectId: string | undefined;
+
+  try {
+    const { data: project } = await admin
+      .from("project")
+      .insert({ project_name: `E2E Minutes Window ${Date.now()}`, status: "Active", lead_ba_id: leadUserId })
+      .select("project_id")
+      .single();
+    projectId = project!.project_id;
+    await admin.from("project_member").insert({ project_id: projectId, user_id: leadUserId, role_name: "LeadBA" });
+
+    const { data: interaction } = await admin
+      .from("interaction")
+      .insert({ project_id: projectId, source_type: "ManualNote", title: "Window call", processing_status: "Confirmed" })
+      .select("interaction_id")
+      .single();
+
+    const closedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: minutes } = await admin
+      .from("minutes_document")
+      .insert({
+        project_id: projectId,
+        interaction_id: interaction!.interaction_id,
+        subject: "Closed window minutes",
+        body_html: "<p>Agreed.</p>",
+        status: "Distributed",
+        distributed_at: new Date(Date.now() - 49 * 60 * 60 * 1000).toISOString(),
+        ack_window_ends_at: closedAt,
+      })
+      .select("minutes_id")
+      .single();
+
+    await admin
+      .from("minutes_recipient")
+      .insert({ minutes_id: minutes!.minutes_id, email: "late@example.com", ack_token_hash: hashAckToken(ackToken) });
+
+    await page.goto(`/minutes/${ackToken}`);
+    await expect(page.getByText("Closed window minutes")).toBeVisible();
+    await expect(page.getByText(/The window for flagging issues closed on/)).toBeVisible();
+    await expect(page.locator("#dispute_note")).toHaveCount(0);
+  } finally {
+    if (projectId) await deleteTestProject(projectId);
+    await admin.auth.admin.deleteUser(leadUserId);
+  }
+});
+
+test("a script in stored minutes HTML is not executed on the public page", async ({ page }) => {
+  const admin = getAdminClient();
+  const { data: userResult } = await admin.auth.admin.createUser({
+    email: `e2e-minutes-xss-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+    password: "MinutesAckTest7!",
+    email_confirm: true,
+  });
+  const leadUserId = userResult!.user!.id;
+  const ackToken = randomBytes(32).toString("base64url");
+  let projectId: string | undefined;
+
+  try {
+    const { data: project } = await admin
+      .from("project")
+      .insert({ project_name: `E2E Minutes XSS ${Date.now()}`, status: "Active", lead_ba_id: leadUserId })
+      .select("project_id")
+      .single();
+    projectId = project!.project_id;
+    await admin.from("project_member").insert({ project_id: projectId, user_id: leadUserId, role_name: "LeadBA" });
+    const { data: interaction } = await admin
+      .from("interaction")
+      .insert({ project_id: projectId, source_type: "ManualNote", title: "XSS call", processing_status: "Confirmed" })
+      .select("interaction_id")
+      .single();
+    // Written straight to the table, bypassing the app's write-time
+    // sanitising, to prove the render path is safe on its own.
+    const { data: minutes } = await admin
+      .from("minutes_document")
+      .insert({
+        project_id: projectId,
+        interaction_id: interaction!.interaction_id,
+        subject: "XSS probe",
+        body_html: '<p>Visible text</p><img src=x onerror="window.__xss=1"><script>window.__xss=1</script>',
+        status: "Distributed",
+      })
+      .select("minutes_id")
+      .single();
+    await admin
+      .from("minutes_recipient")
+      .insert({ minutes_id: minutes!.minutes_id, email: "xss@example.com", ack_token_hash: hashAckToken(ackToken) });
+
+    await page.goto(`/minutes/${ackToken}`);
+    await expect(page.getByText("Visible text")).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined();
+    await expect(page.locator("img[onerror]")).toHaveCount(0);
+  } finally {
+    if (projectId) await deleteTestProject(projectId);
+    await admin.auth.admin.deleteUser(leadUserId);
+  }
 });

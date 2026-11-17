@@ -1,17 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { assignNextPartner } from "@/lib/delivery/assignNextPartner";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 export async function createDeliveryPartner(projectId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -25,7 +19,7 @@ export async function createDeliveryPartner(projectId: string, formData: FormDat
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { count } = await supabase
     .from("delivery_partner")
@@ -52,7 +46,7 @@ export async function updateDeliveryPartnerSla(projectId: string, formData: Form
   const slaHoursRaw = String(formData.get("sla_hours") ?? "").trim();
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("delivery_partner")
@@ -68,7 +62,7 @@ export async function toggleDeliveryPartnerActive(projectId: string, formData: F
   const isActive = formData.get("is_active") === "true";
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("delivery_partner")
@@ -85,7 +79,7 @@ export async function reorderDeliveryPartner(projectId: string, formData: FormDa
   const direction = String(formData.get("direction") ?? "");
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { data: partners, error } = await supabase
     .from("delivery_partner")
@@ -117,7 +111,7 @@ export async function reorderDeliveryPartner(projectId: string, formData: FormDa
 export async function deleteDeliveryPartner(projectId: string, formData: FormData) {
   const partnerId = String(formData.get("delivery_partner_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { count } = await supabase
     .from("delivery_attempt")
@@ -146,7 +140,7 @@ export async function createDelivery(projectId: string, formData: FormData) {
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: created, error } = await supabase
     .from("delivery")
@@ -203,7 +197,7 @@ async function requireCurrentAttempt(
 export async function markDeliveryInTransit(projectId: string, formData: FormData) {
   const deliveryId = String(formData.get("delivery_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { delivery, attemptId } = await requireCurrentAttempt(supabase, deliveryId);
   if (delivery.status !== "Assigned") {
@@ -225,7 +219,7 @@ export async function markDeliveryInTransit(projectId: string, formData: FormDat
 export async function markDeliveryDelivered(projectId: string, formData: FormData) {
   const deliveryId = String(formData.get("delivery_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { delivery, attemptId } = await requireCurrentAttempt(supabase, deliveryId);
   if (delivery.status !== "Assigned" && delivery.status !== "InTransit") {
@@ -257,7 +251,7 @@ export async function markDeliveryDelivered(projectId: string, formData: FormDat
 export async function declineCurrentPartner(projectId: string, formData: FormData) {
   const deliveryId = String(formData.get("delivery_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { delivery, attemptId } = await requireCurrentAttempt(supabase, deliveryId);
   if (delivery.status !== "Assigned" && delivery.status !== "InTransit") {

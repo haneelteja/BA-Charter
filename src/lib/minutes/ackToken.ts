@@ -1,9 +1,18 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** 256 bits of entropy — possession of this token is the sole authorization for its row, so it must not be guessable. */
 export function generateAckToken(): string {
   return randomBytes(32).toString("base64url");
+}
+
+/**
+ * Only this hash is stored (migration 0026), so project members who can read
+ * minutes_recipient rows cannot take a recipient's link and act as them.
+ * Must match the SQL backfill: hex(sha256(utf8(token))).
+ */
+export function hashAckToken(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
 export interface MinutesAckRecord {
@@ -19,6 +28,12 @@ export interface MinutesAckRecord {
   status: string;
   disputeNote: string | null;
   projectName: string;
+  ackWindowEndsAt: string | null;
+}
+
+/** True while a dispute can still be raised (§8 rule 4: "within the acknowledgement window"). */
+export function isWithinAckWindow(ackWindowEndsAt: string | null, now: Date = new Date()): boolean {
+  return ackWindowEndsAt === null || now.getTime() <= new Date(ackWindowEndsAt).getTime();
 }
 
 /**
@@ -31,17 +46,19 @@ export async function getMinutesAckRecord(
   supabase: SupabaseClient,
   token: string
 ): Promise<MinutesAckRecord | null> {
-  if (!token) return null;
+  // Tokens are 43 base64url characters; anything else cannot match.
+  if (!token || !/^[A-Za-z0-9_-]{20,128}$/.test(token)) return null;
 
   const { data, error } = await supabase
     .from("minutes_recipient")
     .select(
-      "recipient_id, email, acknowledged_at, disputed_at, minutes_id, minutes_document(minutes_id, project_id, interaction_id, subject, body_html, status, dispute_note, project(project_name))"
+      "recipient_id, email, acknowledged_at, disputed_at, expires_at, minutes_id, minutes_document(minutes_id, project_id, interaction_id, subject, body_html, status, dispute_note, ack_window_ends_at, project(project_name))"
     )
-    .eq("ack_token", token)
+    .eq("ack_token_hash", hashAckToken(token))
     .maybeSingle();
 
   if (error || !data) return null;
+  if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) return null;
 
   const doc = Array.isArray(data.minutes_document) ? data.minutes_document[0] : data.minutes_document;
   if (!doc) return null;
@@ -60,5 +77,6 @@ export async function getMinutesAckRecord(
     status: doc.status,
     disputeNote: doc.dispute_note,
     projectName: project?.project_name ?? "Project",
+    ackWindowEndsAt: doc.ack_window_ends_at ?? null,
   };
 }

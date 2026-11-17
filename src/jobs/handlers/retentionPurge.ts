@@ -39,10 +39,26 @@ export async function purgeInteraction(
 ): Promise<void> {
   const { error: utteranceError } = await supabase
     .from("utterance")
-    .update({ content: null, speaker_label: null })
+    // The embedding is derived from the content and can leak it through
+    // similarity search or inversion, so it goes too (Requirements §7:
+    // source transcripts are purgeable).
+    .update({ content: null, speaker_label: null, embedding: null })
     .eq("interaction_id", interactionId);
   if (utteranceError) {
     throw new Error(`Failed to redact utterances: ${utteranceError.message}`);
+  }
+
+  // Candidate statements still awaiting review are verbatim or near-verbatim
+  // source text. Committed ones became decisions, action items or
+  // clarifications (resolved knowledge, kept by design), so only
+  // unreviewed and rejected candidates are redacted.
+  const { error: candidateError } = await supabase
+    .from("extraction_candidate")
+    .update({ statement: "[purged]" })
+    .eq("interaction_id", interactionId)
+    .in("status", ["Pending", "Rejected", "Merged", "Split"]);
+  if (candidateError) {
+    throw new Error(`Failed to redact extraction candidates: ${candidateError.message}`);
   }
 
   const { error: interactionError } = await supabase

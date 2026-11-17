@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { getProjectRole, isLead } from "@/lib/projects/role";
@@ -9,13 +10,6 @@ import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 const LAYERS = ["SystemOverview", "FunctionalArea", "CapabilityRule", "ImplementationNote"] as const;
 export type CharterLayer = (typeof LAYERS)[number];
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 /**
  * §3.8 rule: only confirmed content may be written to the model. For this
@@ -38,7 +32,7 @@ export async function createKnowledgeNode(projectId: string, formData: FormData)
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: node, error } = await supabase
     .from("knowledge_node")
@@ -101,7 +95,7 @@ export async function updateKnowledgeNode(
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: prior, error: fetchError } = await supabase
     .from("knowledge_node")
@@ -165,7 +159,7 @@ export async function flagConflict(projectId: string, formData: FormData) {
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase.from("knowledge_conflict").insert({
     project_id: projectId,
@@ -205,7 +199,7 @@ export async function resolveConflict(projectId: string, formData: FormData) {
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const role = await getProjectRole(supabase, projectId, user.id);
   if (!isLead(role)) {

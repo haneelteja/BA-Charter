@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { sanitizeMinutesHtml } from "@/lib/html/sanitizeMinutes";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
-import { getMinutesAckRecord } from "@/lib/minutes/ackToken";
+import { getMinutesAckRecord, isWithinAckWindow } from "@/lib/minutes/ackToken";
 import { acknowledgeMinutes, disputeMinutesPublic } from "./actions";
 import { Badge, Card, Field, SubmitButton, Textarea } from "@/components/ui";
 
@@ -43,7 +44,7 @@ export default async function MinutesAckPage({ params }: { params: Promise<{ tok
 
         <div
           className="prose prose-sm mt-4 max-w-none dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: record.bodyHtml ?? "" }}
+          dangerouslySetInnerHTML={{ __html: sanitizeMinutesHtml(record.bodyHtml) }}
         />
       </Card>
 
@@ -68,7 +69,11 @@ export default async function MinutesAckPage({ params }: { params: Promise<{ tok
 
         <Card>
           <p className="text-sm font-medium">Flag an issue</p>
-          {record.status === "Disputed" ? (
+          {record.status !== "Disputed" && !isWithinAckWindow(record.ackWindowEndsAt) ? (
+            <p className="mt-2 text-xs text-muted">
+              The window for flagging issues closed on {new Date(record.ackWindowEndsAt as string).toLocaleString()}.
+            </p>
+          ) : record.status === "Disputed" ? (
             <div className="mt-2 flex items-center gap-2">
               <Badge tone="red">Disputed</Badge>
               <p className="text-xs text-muted">{record.disputeNote}</p>

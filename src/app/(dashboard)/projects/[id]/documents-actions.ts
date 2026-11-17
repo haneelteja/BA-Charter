@@ -1,17 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 import { extractText } from "@/lib/documents/extractText";
+import { MAX_EXTRACTED_CHARS, sanitizeFileName, validateUpload, withTimeout } from "@/lib/documents/uploadPolicy";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 export type UploadDocumentResult =
   | { ok: true; documentId: string; fileName: string }
@@ -38,18 +33,33 @@ export async function uploadDocument(projectId: string, formData: FormData): Pro
     return { ok: false, error: "Choose a file to upload." };
   }
 
+  // Authorise before doing any work on the file: parsing a PDF or DOCX is
+  // expensive, and server actions can be called directly.
+  const supabase = await getSupabaseServerClient();
+  let user: Awaited<ReturnType<typeof requireProjectAccess>>["user"];
+  try {
+    ({ user } = await requireProjectAccess(supabase, projectId, "author"));
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Not allowed." };
+  }
+
+  const problem = await validateUpload(file, file.name);
+  if (problem) {
+    return { ok: false, error: problem };
+  }
+
   let text: string;
   try {
-    text = await extractText(file, file.name);
+    text = await withTimeout(extractText(file, file.name), 30_000, "Reading that file took too long. Try a smaller file.");
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to read that file." };
   }
-
-  const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  if (text.length > MAX_EXTRACTED_CHARS) {
+    text = text.slice(0, MAX_EXTRACTED_CHARS);
+  }
 
   const documentId = crypto.randomUUID();
-  const storagePath = `${projectId}/${documentId}/${file.name}`;
+  const storagePath = `${projectId}/${documentId}/${sanitizeFileName(file.name)}`;
 
   const { error: uploadError } = await supabase.storage
     .from("project-documents")
@@ -62,7 +72,7 @@ export async function uploadDocument(projectId: string, formData: FormData): Pro
     document_id: documentId,
     project_id: projectId,
     uploaded_by: user.id,
-    file_name: file.name,
+    file_name: file.name.slice(0, 300),
     storage_path: storagePath,
     mime_type: file.type || null,
     extracted_text: text,

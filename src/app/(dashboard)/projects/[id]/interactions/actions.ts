@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -31,10 +32,7 @@ export async function createInteraction(projectId: string, formData: FormData) {
   }
 
   const supabase = await getSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
+  const auth = { user: (await requireProjectAccess(supabase, projectId, "author")).user };
 
   const { data: project, error: projectError } = await supabase
     .from("project")
@@ -142,6 +140,18 @@ export async function mapSpeaker(
   }
 
   const supabase = await getSupabaseServerClient();
+  await requireProjectAccess(supabase, projectId, "author");
+
+  // The utterance must belong to an interaction in this project.
+  const { data: owningInteraction } = await supabase
+    .from("interaction")
+    .select("interaction_id")
+    .eq("interaction_id", interactionId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (!owningInteraction) {
+    throw new Error("Interaction not found in this project.");
+  }
 
   const { error } = await supabase
     .from("utterance")
@@ -150,7 +160,8 @@ export async function mapSpeaker(
         ? { speaker_user_id: targetId, speaker_stakeholder_id: null }
         : { speaker_stakeholder_id: targetId, speaker_user_id: null }
     )
-    .eq("utterance_id", utteranceId);
+    .eq("utterance_id", utteranceId)
+    .eq("interaction_id", interactionId);
 
   if (error) {
     throw new Error(`Failed to map speaker: ${error.message}`);

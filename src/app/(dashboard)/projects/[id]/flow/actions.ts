@@ -1,25 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { EMPTY_CONTENT, type FlowDiagramContent, type FlowDiagramEdge, type FlowDiagramNode } from "./types";
-
-type Supa = Awaited<ReturnType<typeof getSupabaseServerClient>>;
-
-async function requireUser(supabase: Supa) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
+import { parseDiagramContent } from "./schema";
 
 export async function createBlankDiagram(projectId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || "Untitled diagram";
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: diagram, error } = await supabase
     .from("flow_diagram")
@@ -58,7 +50,7 @@ const ROW_START_Y = 80;
 export async function createSeededDiagram(projectId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || "Untitled diagram";
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: epics, error: epicsError } = await supabase
     .from("epic")
@@ -191,15 +183,25 @@ export async function saveDiagram(
   content: FlowDiagramContent
 ): Promise<SaveDiagramResult> {
   const supabase = await getSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    return { ok: false, error: "Not signed in." };
+  let auth: { user: Awaited<ReturnType<typeof requireProjectAccess>>["user"] };
+  try {
+    auth = { user: (await requireProjectAccess(supabase, projectId, "author")).user };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Not allowed." };
   }
+
+  const parsed = parseDiagramContent(content);
+  if (!parsed) {
+    return { ok: false, error: "The diagram couldn't be saved because it contains invalid or too much data." };
+  }
+  content = parsed;
+  const safeTitle = String(title ?? "").trim().slice(0, 200) || "Untitled diagram";
 
   const { error } = await supabase
     .from("flow_diagram")
-    .update({ title: title.trim() || "Untitled diagram", content, updated_at: new Date().toISOString() })
-    .eq("diagram_id", diagramId);
+    .update({ title: safeTitle, content, updated_at: new Date().toISOString() })
+    .eq("diagram_id", diagramId)
+    .eq("project_id", projectId);
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -218,9 +220,9 @@ export async function saveDiagram(
 
 export async function deleteDiagram(projectId: string, diagramId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
-  const { error } = await supabase.from("flow_diagram").delete().eq("diagram_id", diagramId);
+  const { error } = await supabase.from("flow_diagram").delete().eq("diagram_id", diagramId).eq("project_id", projectId);
   if (error) {
     throw new Error(`Failed to delete diagram: ${error.message}`);
   }

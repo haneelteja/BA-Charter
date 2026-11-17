@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -20,13 +21,6 @@ export type { BrainstormQuestion };
 import { getAgileStudioClient } from "@/lib/agileStudio/client";
 import { sendEmail } from "@/lib/email/resend";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 /**
  * §8 rule 9: cannot close a change request while a blocking clarification
@@ -71,7 +65,7 @@ export async function createChangeRequest(projectId: string, formData: FormData)
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: changeRequest, error } = await supabase
     .from("change_request")
@@ -111,7 +105,7 @@ export async function updateChangeRequest(projectId: string, changeRequestId: st
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("change_request")
@@ -143,7 +137,7 @@ export async function runChangeImpactAnalysis(
   changeRequestId: string
 ): Promise<ChangeImpactAnalysisResult> {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: changeRequest, error: fetchError } = await supabase
     .from("change_request")
@@ -264,7 +258,7 @@ export async function disposeFinding(projectId: string, changeRequestId: string,
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: finding, error: fetchError } = await supabase
     .from("impact_finding")
@@ -301,7 +295,7 @@ export async function disposeFinding(projectId: string, changeRequestId: string,
 
 export async function moveToBrainstorm(projectId: string, changeRequestId: string) {
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("change_request")
@@ -319,7 +313,7 @@ export async function generateQuestions(
   changeRequestId: string
 ): Promise<BrainstormQuestion[]> {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: changeRequest, error: fetchError } = await supabase
     .from("change_request")
@@ -393,7 +387,7 @@ export async function raiseClarificationFromChangeRequest(
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   await raiseClarification(supabase, projectId, changeRequestId, user.id, { question, audienceType, isBlocking });
 
@@ -402,7 +396,7 @@ export async function raiseClarificationFromChangeRequest(
 
 export async function moveToDecide(projectId: string, changeRequestId: string) {
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("change_request")
@@ -427,7 +421,7 @@ export async function decideChangeRequest(projectId: string, changeRequestId: st
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   if (outcome === "Deferred" || outcome === "Rejected") {
     await assertNoBlockingClarifications(supabase, changeRequestId);
@@ -467,7 +461,7 @@ const STORY_EDITABLE_FIELDS = [
 /** §3.7 stage 5 (Propagate), part 1: drafts edits for every Epic/UserStory finding the BA accepted during Analyse. Only reachable once the change is Accepted. */
 export async function generateEditsForChangeRequest(projectId: string, changeRequestId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: changeRequest, error: fetchError } = await supabase
     .from("change_request")
@@ -570,7 +564,7 @@ export async function reviewProposedEdit(projectId: string, changeRequestId: str
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: edit, error: fetchError } = await supabase
     .from("proposed_edit")
@@ -629,7 +623,7 @@ export async function reviewProposedEdit(projectId: string, changeRequestId: str
 /** §3.7 stage 5, part 3: email notification to affected delivery team members (EPIC 15). */
 export async function sendChangeNotification(projectId: string, changeRequestId: string) {
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { data: changeRequest, error: fetchError } = await supabase
     .from("change_request")
@@ -673,7 +667,7 @@ export async function sendChangeNotification(projectId: string, changeRequestId:
 /** §3.7 stage 5, closing: §8 rule 9 guard applies here too since this is the terminal transition out of Accepted. */
 export async function completePropagation(projectId: string, changeRequestId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   await assertNoBlockingClarifications(supabase, changeRequestId);
 

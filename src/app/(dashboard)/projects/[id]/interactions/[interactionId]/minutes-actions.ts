@@ -1,32 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
-import { getProjectRole, isLead } from "@/lib/projects/role";
 import { resolveUserLanguageModel } from "@/lib/ai/userModel";
 import { generateMinutesDraft } from "@/lib/ai/minutes";
 import { sendEmail } from "@/lib/email/resend";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
-import { generateAckToken } from "@/lib/minutes/ackToken";
+import { generateAckToken, hashAckToken, isWithinAckWindow } from "@/lib/minutes/ackToken";
+import { getAppBaseUrl } from "@/lib/appUrl";
+import { isValidEmail } from "@/lib/validation";
 import { revertMinutesDispute } from "@/lib/minutes/dispute";
 import { resolveOwnerUserId } from "@/lib/minutes/resolveOwner";
+import { sanitizeMinutesHtml } from "@/lib/html/sanitizeMinutes";
 
 type Supa = Awaited<ReturnType<typeof getSupabaseServerClient>>;
 
-async function requireUser(supabase: Supa) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 export async function generateMinutes(projectId: string, interactionId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: interaction, error: interactionError } = await supabase
     .from("interaction")
@@ -67,7 +62,7 @@ export async function generateMinutes(projectId: string, interactionId: string) 
     project_id: projectId,
     interaction_id: interactionId,
     subject: draft.subject,
-    body_html: draft.bodyHtml,
+    body_html: sanitizeMinutesHtml(draft.bodyHtml),
     status: "Draft",
   });
 
@@ -81,15 +76,16 @@ export async function generateMinutes(projectId: string, interactionId: string) 
 export async function updateMinutes(projectId: string, interactionId: string, formData: FormData) {
   const minutesId = String(formData.get("minutes_id") ?? "");
   const subject = String(formData.get("subject") ?? "").trim();
-  const bodyHtml = String(formData.get("body_html") ?? "").trim();
+  const bodyHtml = sanitizeMinutesHtml(String(formData.get("body_html") ?? "").trim());
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("minutes_document")
     .update({ subject, body_html: bodyHtml })
     .eq("minutes_id", minutesId)
+    .eq("project_id", projectId)
     .in("status", ["Draft", "InReview"]);
 
   if (error) {
@@ -97,6 +93,24 @@ export async function updateMinutes(projectId: string, interactionId: string, fo
   }
 
   revalidatePath(`/projects/${projectId}/interactions/${interactionId}`);
+}
+
+const MAX_RECIPIENTS = 50;
+
+async function getAllowedRecipientEmails(supabase: Supa, projectId: string): Promise<Set<string>> {
+  const [{ data: members }, { data: stakeholders }] = await Promise.all([
+    supabase.from("project_member").select("app_user(email)").eq("project_id", projectId),
+    supabase.from("stakeholder").select("email").eq("project_id", projectId),
+  ]);
+  const emails = new Set<string>();
+  for (const m of members ?? []) {
+    const user = Array.isArray(m.app_user) ? m.app_user[0] : m.app_user;
+    if (user?.email) emails.add(String(user.email).toLowerCase());
+  }
+  for (const s of stakeholders ?? []) {
+    if (s.email) emails.add(String(s.email).toLowerCase());
+  }
+  return emails;
 }
 
 /**
@@ -111,34 +125,63 @@ export async function approveAndDistribute(
   formData: FormData
 ) {
   const minutesId = String(formData.get("minutes_id") ?? "");
-  const recipients = formData.getAll("recipients").map(String).filter(Boolean);
+  const requested = formData
+    .getAll("recipients")
+    .map((r) => String(r).trim().toLowerCase())
+    .filter(Boolean);
+  const recipients = [...new Set(requested)];
 
   if (recipients.length === 0) {
     throw new Error("Select at least one recipient.");
   }
+  if (recipients.length > MAX_RECIPIENTS) {
+    throw new Error(`Send to at most ${MAX_RECIPIENTS} recipients at once.`);
+  }
+  const invalid = recipients.filter((r) => !isValidEmail(r));
+  if (invalid.length > 0) {
+    throw new Error(`Not a valid email address: ${invalid.join(", ")}`);
+  }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "lead");
 
-  const role = await getProjectRole(supabase, projectId, user.id);
-  if (!isLead(role)) {
-    throw new Error("Only a Lead Business Analyst can approve minutes.");
+  // Minutes only go to the project's own members and stakeholders, the same
+  // list the page offers, so this action cannot be used to send mail from
+  // the app's domain to arbitrary addresses.
+  const allowed = await getAllowedRecipientEmails(supabase, projectId);
+  const notAllowed = recipients.filter((r) => !allowed.has(r));
+  if (notAllowed.length > 0) {
+    throw new Error(`Not a project member or stakeholder: ${notAllowed.join(", ")}`);
   }
 
   const { data: minutes, error: minutesError } = await supabase
     .from("minutes_document")
-    .select("subject, body_html")
+    .select("subject, body_html, status, interaction_id")
     .eq("minutes_id", minutesId)
+    .eq("project_id", projectId)
     .single();
 
   if (minutesError) {
     throw new Error(`Failed to load minutes: ${minutesError.message}`);
   }
+  if (minutes.interaction_id !== interactionId) {
+    throw new Error("These minutes belong to a different interaction.");
+  }
+  // Prevents distributing twice (duplicate emails, duplicate commits) and
+  // re-distributing disputed minutes without going back through Confirm.
+  if (minutes.status !== "Draft" && minutes.status !== "InReview") {
+    throw new Error(`Minutes in status ${minutes.status} cannot be approved again.`);
+  }
+
+  // Resolve the link base before changing any state, so a missing
+  // APP_BASE_URL fails cleanly instead of leaving minutes half-distributed.
+  const baseUrl = await getAppBaseUrl();
 
   const { error: approveError } = await supabase
     .from("minutes_document")
     .update({ status: "Approved", approved_by: user.id })
-    .eq("minutes_id", minutesId);
+    .eq("minutes_id", minutesId)
+    .eq("project_id", projectId);
   if (approveError) {
     throw new Error(`Failed to approve minutes: ${approveError.message}`);
   }
@@ -146,35 +189,34 @@ export async function approveAndDistribute(
   const { error: distributeError } = await supabase
     .from("minutes_document")
     .update({ status: "Distributed", distributed_at: new Date().toISOString() })
-    .eq("minutes_id", minutesId);
+    .eq("minutes_id", minutesId)
+    .eq("project_id", projectId);
   if (distributeError) {
     throw new Error(`Failed to mark minutes distributed: ${distributeError.message}`);
   }
 
-  // Each recipient gets their own unguessable ack/dispute link (EPIC 5),
-  // so each needs its own email with that link baked in rather than one
-  // batched send to every address at once.
-  const headerList = await headers();
-  const origin =
-    headerList.get("origin") ?? `${headerList.get("x-forwarded-proto") ?? "http"}://${headerList.get("host")}`;
+  // Each recipient gets their own unguessable ack/dispute link (EPIC 5).
+  // Only the token's hash is stored; the raw token exists only in the email.
+  const recipientTokens = recipients.map((email) => ({ email, token: generateAckToken() }));
 
-  const recipientRows = recipients.map((email) => ({
-    minutes_id: minutesId,
-    email,
-    ack_token: generateAckToken(),
-  }));
-
-  const { error: recipientsError } = await supabase.from("minutes_recipient").insert(recipientRows);
+  const { error: recipientsError } = await supabase.from("minutes_recipient").insert(
+    recipientTokens.map((r) => ({
+      minutes_id: minutesId,
+      email: r.email,
+      ack_token_hash: hashAckToken(r.token),
+    }))
+  );
   if (recipientsError) {
     throw new Error(`Failed to record recipients: ${recipientsError.message}`);
   }
 
-  for (const recipient of recipientRows) {
-    const ackLink = `${origin}/minutes/${recipient.ack_token}`;
+  const safeBody = sanitizeMinutesHtml(minutes.body_html);
+  for (const recipient of recipientTokens) {
+    const ackLink = `${baseUrl}/minutes/${recipient.token}`;
     await sendEmail({
       to: [recipient.email],
       subject: minutes.subject ?? "Minutes of meeting",
-      html: `${minutes.body_html ?? ""}
+      html: `${safeBody}
         <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;" />
         <p style="font-family:sans-serif;font-size:13px;color:#4b5563;">
           Please review and acknowledge these minutes, or flag any issues, here:
@@ -348,7 +390,24 @@ export async function disputeMinutes(projectId: string, interactionId: string, f
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
+
+  const { data: minutes, error: minutesError } = await supabase
+    .from("minutes_document")
+    .select("status, interaction_id, ack_window_ends_at")
+    .eq("minutes_id", minutesId)
+    .eq("project_id", projectId)
+    .single();
+  if (minutesError) throw new Error(`Failed to load minutes: ${minutesError.message}`);
+  if (minutes.interaction_id !== interactionId) {
+    throw new Error("These minutes belong to a different interaction.");
+  }
+  if (minutes.status !== "Distributed") {
+    throw new Error(`Only distributed minutes can be disputed (current status: ${minutes.status}).`);
+  }
+  if (!isWithinAckWindow(minutes.ack_window_ends_at)) {
+    throw new Error("The acknowledgement window for these minutes has closed.");
+  }
 
   const { decisionIds } = await revertMinutesDispute(supabase, { minutesId, interactionId, disputeNote });
 

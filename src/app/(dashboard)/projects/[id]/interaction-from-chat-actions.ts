@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { parseUtterances } from "@/lib/transcript/parse";
@@ -34,9 +35,11 @@ export async function createInteractionFromChatMessage(
   rawText: string
 ): Promise<CreateInteractionFromChatResult> {
   const supabase = await getSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    return { ok: false, error: "Not signed in." };
+  let auth: { user: Awaited<ReturnType<typeof requireProjectAccess>>["user"] };
+  try {
+    auth = { user: (await requireProjectAccess(supabase, projectId, "author")).user };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Not allowed." };
   }
 
   const trimmed = rawText.trim();
