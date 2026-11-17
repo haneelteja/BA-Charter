@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safeRedirect";
 
 /**
  * Bridges every Supabase email-link confirmation (magic link, signup,
@@ -30,7 +31,9 @@ export default function AuthConfirmPage() {
     (async () => {
       const supabase = getSupabaseBrowserClient();
       const query = new URLSearchParams(window.location.search);
-      const next = query.get("next") ?? "/";
+      // Only ever a same-origin path: ?next= is attacker-controllable via a
+      // crafted link, and window.location accepts javascript: URLs.
+      const next = safeNextPath(query.get("next"));
 
       const hashParams = new URLSearchParams(window.location.hash.slice(1));
       const accessToken = hashParams.get("access_token");
