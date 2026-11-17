@@ -1,23 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 /** §3.4 stage 2 — surfaces in call-prep views (EPIC 13, not built yet). */
 export async function markPrepared(projectId: string, formData: FormData) {
   const clarificationId = String(formData.get("clarification_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("clarification")
@@ -36,7 +30,7 @@ export async function markAsked(projectId: string, formData: FormData) {
   const askedOn = String(formData.get("asked_on") ?? "") || null;
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("clarification")
@@ -64,7 +58,7 @@ export async function answerClarification(projectId: string, formData: FormData)
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: clarification, error: fetchError } = await supabase
     .from("clarification")
@@ -126,7 +120,7 @@ export async function confirmAnswer(projectId: string, formData: FormData) {
   const clarificationId = String(formData.get("clarification_id") ?? "");
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: clarification, error: fetchError } = await supabase
     .from("clarification")
@@ -168,7 +162,7 @@ export async function confirmAnswer(projectId: string, formData: FormData) {
 export async function withdrawClarification(projectId: string, formData: FormData) {
   const clarificationId = String(formData.get("clarification_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("clarification")

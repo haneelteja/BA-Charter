@@ -23,6 +23,7 @@ async function requireOwnerOrLead(
     .from("action_item")
     .select("owner_user_id, raised_by, status")
     .eq("action_item_id", actionItemId)
+    .eq("project_id", projectId)
     .single();
 
   if (error) {

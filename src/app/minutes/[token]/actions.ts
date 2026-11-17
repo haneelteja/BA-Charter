@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { logAuditEvent } from "@/lib/audit/log";
-import { getMinutesAckRecord } from "@/lib/minutes/ackToken";
+import { getMinutesAckRecord, isWithinAckWindow } from "@/lib/minutes/ackToken";
 import { revertMinutesDispute } from "@/lib/minutes/dispute";
 
 /**
@@ -55,6 +55,14 @@ export async function disputeMinutesPublic(token: string, formData: FormData) {
   if (record.status === "Disputed") {
     revalidatePath(`/minutes/${token}`);
     return;
+  }
+  // This route runs as service_role, which the database's window check
+  // (migration 0026) deliberately trusts, so the window is enforced here.
+  if (record.status !== "Distributed" || !isWithinAckWindow(record.ackWindowEndsAt)) {
+    throw new Error("The window for flagging issues with these minutes has closed. Contact the Business Analyst directly.");
+  }
+  if (disputeNote.length > 4000) {
+    throw new Error("Keep the description under 4,000 characters.");
   }
 
   const { decisionIds } = await revertMinutesDispute(supabase, {

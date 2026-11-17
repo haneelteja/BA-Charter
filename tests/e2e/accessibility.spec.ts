@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { deleteTestProject, getAdminClient } from "./helpers/supabase-admin";
+import { hashAckToken } from "../../src/lib/minutes/ackToken";
 
 /**
  * EPIC 16: automated WCAG 2.1 A/AA scan via axe-core against real,
@@ -234,7 +235,7 @@ test("public, unauthenticated pages have no detectable WCAG 2.1 A/AA violations"
     const ackToken = `probe-token-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     await admin
       .from("minutes_recipient")
-      .insert({ minutes_id: minutes!.minutes_id, email: "stakeholder@example.com", ack_token: ackToken });
+      .insert({ minutes_id: minutes!.minutes_id, email: "stakeholder@example.com", ack_token_hash: hashAckToken(ackToken) });
 
     const pages: Array<[string, string]> = [
       ["Sign in", "/sign-in"],

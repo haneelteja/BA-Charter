@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isLead } from "@/lib/projects/role";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -12,13 +14,6 @@ import { getAgileStudioClient } from "@/lib/agileStudio/client";
 
 const EDITABLE_STATUSES = ["Draft", "GuardrailCheck", "ReturnedForRework"];
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 function storyText(story: {
   title: string;
@@ -44,7 +39,7 @@ export async function createUserStory(projectId: string, formData: FormData) {
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: story, error } = await supabase
     .from("user_story")
@@ -94,7 +89,7 @@ export async function updateStoryDetail(projectId: string, storyId: string, form
   const expectedVersionNo = Number(formData.get("expected_version_no") ?? "");
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: prior, error: fetchError } = await supabase
     .from("user_story")
@@ -141,7 +136,7 @@ export async function addAcceptanceCriterion(projectId: string, storyId: string,
   const isNegativePath = formData.get("is_negative_path") === "on";
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { count } = await supabase
     .from("acceptance_criterion")
@@ -164,7 +159,7 @@ export async function addAcceptanceCriterion(projectId: string, storyId: string,
 export async function deleteAcceptanceCriterion(projectId: string, storyId: string, formData: FormData) {
   const criterionId = String(formData.get("criterion_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase.from("acceptance_criterion").delete().eq("criterion_id", criterionId);
   if (error) throw new Error(`Failed to delete acceptance criterion: ${error.message}`);
@@ -181,7 +176,7 @@ export async function addDependency(projectId: string, storyId: string, formData
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase.from("story_dependency").insert({
     user_story_id: storyId,
@@ -196,7 +191,7 @@ export async function addDependency(projectId: string, storyId: string, formData
 export async function removeDependency(projectId: string, storyId: string, formData: FormData) {
   const dependencyId = String(formData.get("dependency_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase.from("story_dependency").delete().eq("dependency_id", dependencyId);
   if (error) throw new Error(`Failed to remove dependency: ${error.message}`);
@@ -217,7 +212,7 @@ export interface StoryCheckResult {
  */
 export async function runStoryCheck(projectId: string, storyId: string): Promise<StoryCheckResult> {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: story, error: storyError } = await supabase
     .from("user_story")
@@ -287,14 +282,18 @@ export async function runStoryCheck(projectId: string, storyId: string): Promise
 /** §3.6 stage 3 -> 4. */
 export async function submitStoryForReview(projectId: string, storyId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: story, error: fetchError } = await supabase
     .from("user_story")
     .select("status, guardrail_pass")
     .eq("user_story_id", storyId)
+    .eq("project_id", projectId)
     .single();
   if (fetchError) throw new Error(`Failed to load story: ${fetchError.message}`);
+  if (!EDITABLE_STATUSES.includes(story.status)) {
+    throw new Error(`A story in status ${story.status} cannot be submitted for review.`);
+  }
   if (!story.guardrail_pass) {
     throw new Error("Run the guardrail check and resolve any blocking findings first.");
   }
@@ -303,6 +302,7 @@ export async function submitStoryForReview(projectId: string, storyId: string) {
     .from("user_story")
     .update({ status: "InReview" })
     .eq("user_story_id", storyId)
+    .eq("project_id", projectId)
     .in("status", EDITABLE_STATUSES);
   if (error) throw new Error(`Failed to submit for review: ${error.message}`);
 
@@ -318,7 +318,12 @@ export async function submitStoryForReview(projectId: string, storyId: string) {
   revalidatePath(`/projects/${projectId}/stories/${storyId}`);
 }
 
-/** §3.6 stage 4: "Peer Business Analyst or Lead Business Analyst reviews" — any project member, not Lead-gated. */
+/**
+ * §3.6 stage 4: "Peer Business Analyst or Lead Business Analyst reviews."
+ * Only a story that is InReview can be reviewed, and an author cannot
+ * review their own story unless they are the Lead BA (so a one-person
+ * project is not stuck). Migration 0026 enforces the same in the database.
+ */
 export async function reviewStory(projectId: string, storyId: string, formData: FormData) {
   const outcome = String(formData.get("outcome") ?? "");
   const comments = String(formData.get("comments") ?? "").trim();
@@ -328,7 +333,21 @@ export async function reviewStory(projectId: string, storyId: string, formData: 
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user, role } = await requireProjectAccess(supabase, projectId, "author");
+
+  const { data: story, error: storyError } = await supabase
+    .from("user_story")
+    .select("status, created_by")
+    .eq("user_story_id", storyId)
+    .eq("project_id", projectId)
+    .single();
+  if (storyError) throw new Error(`Failed to load story: ${storyError.message}`);
+  if (story.status !== "InReview") {
+    throw new Error(`Only a story in review can be reviewed (current status: ${story.status}).`);
+  }
+  if (story.created_by === user.id && !isLead(role)) {
+    throw new Error("You cannot review your own story. Ask another Business Analyst or the Lead BA.");
+  }
 
   const { error: reviewError } = await supabase.from("review").insert({
     project_id: projectId,
@@ -344,7 +363,9 @@ export async function reviewStory(projectId: string, storyId: string, formData: 
   const { error: updateError } = await supabase
     .from("user_story")
     .update({ status: outcome })
-    .eq("user_story_id", storyId);
+    .eq("user_story_id", storyId)
+    .eq("project_id", projectId)
+    .eq("status", "InReview");
   if (updateError) throw new Error(`Failed to update story status: ${updateError.message}`);
 
   await logAuditEvent(supabase, {
@@ -366,7 +387,21 @@ export async function linkStoryToDecision(projectId: string, storyId: string, fo
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
+
+  // Both ends must belong to this project. Provisional decisions may be
+  // linked while drafting (§8 rule 3), but only Confirmed ones count for
+  // publication (see publishStory).
+  const [{ data: story }, { data: decision }] = await Promise.all([
+    supabase.from("user_story").select("user_story_id").eq("user_story_id", storyId).eq("project_id", projectId).maybeSingle(),
+    supabase.from("decision").select("status").eq("decision_id", decisionId).eq("project_id", projectId).maybeSingle(),
+  ]);
+  if (!story || !decision) {
+    throw new Error("Story or decision not found in this project.");
+  }
+  if (!["Candidate", "Provisional", "Confirmed"].includes(decision.status)) {
+    throw new Error(`A ${decision.status} decision cannot be linked.`);
+  }
 
   const { error } = await supabase.from("trace_link").insert({
     project_id: projectId,
@@ -384,26 +419,41 @@ export async function linkStoryToDecision(projectId: string, storyId: string, fo
 /** §8 rule 5: hard gate — publication blocked without a trace link to a confirmed decision. */
 export async function publishStory(projectId: string, storyId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  // Requirements §2: the Lead BA "approves user stories for publication to Agile Studio".
+  const { user } = await requireProjectAccess(supabase, projectId, "lead");
 
   const { data: story, error: fetchError } = await supabase
     .from("user_story")
     .select("title, status")
     .eq("user_story_id", storyId)
+    .eq("project_id", projectId)
     .single();
   if (fetchError) throw new Error(`Failed to load story: ${fetchError.message}`);
   if (story.status !== "Approved") {
     throw new Error(`Cannot publish a story in status ${story.status}.`);
   }
 
-  const { count } = await supabase
+  // §8 rules 3 and 5: the link must be to a Confirmed decision. Provisional
+  // decisions may inform drafts but cannot support publication.
+  const { data: links, error: linksError } = await supabase
     .from("trace_link")
-    .select("trace_link_id", { count: "exact", head: true })
+    .select("to_object_id")
+    .eq("project_id", projectId)
     .eq("from_object_type", "UserStory")
     .eq("from_object_id", storyId)
     .eq("to_object_type", "Decision");
+  if (linksError) throw new Error(`Failed to load trace links: ${linksError.message}`);
+  const linkedDecisionIds = (links ?? []).map((l) => l.to_object_id);
+  const { count } = linkedDecisionIds.length
+    ? await supabase
+        .from("decision")
+        .select("decision_id", { count: "exact", head: true })
+        .eq("project_id", projectId)
+        .eq("status", "Confirmed")
+        .in("decision_id", linkedDecisionIds)
+    : { count: 0 };
   if (!count) {
-    throw new Error("A story cannot be published without at least one trace link to a confirmed decision.");
+    throw new Error("A story cannot be published without at least one trace link to a Confirmed decision. Provisional decisions become Confirmed once the minutes are acknowledged or the acknowledgement window lapses.");
   }
 
   const { ref } = await getAgileStudioClient().publishStory({ storyId, title: story.title });
@@ -411,7 +461,8 @@ export async function publishStory(projectId: string, storyId: string) {
   const { error: updateError } = await supabase
     .from("user_story")
     .update({ status: "Published", agile_studio_ref: ref })
-    .eq("user_story_id", storyId);
+    .eq("user_story_id", storyId)
+    .eq("project_id", projectId);
   if (updateError) throw new Error(`Failed to update story: ${updateError.message}`);
 
   await logAuditEvent(supabase, {

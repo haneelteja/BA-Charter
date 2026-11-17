@@ -1,17 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAuthEmailClient } from "@/lib/supabase/authEmailClient";
 import { getFailedPasswordRules, isValidEmail } from "@/lib/validation";
+import { getAppBaseUrl } from "@/lib/appUrl";
 
 async function getEmailRedirectTo() {
-  const headerList = await headers();
-  const origin =
-    headerList.get("origin") ??
-    `${headerList.get("x-forwarded-proto") ?? "http"}://${headerList.get("host")}`;
-  return `${origin}/auth/confirm`;
+  // From configuration, never from request headers (see src/lib/appUrl.ts).
+  return `${await getAppBaseUrl()}/auth/confirm`;
 }
 
 /**
@@ -116,10 +113,7 @@ export async function requestPasswordReset(formData: FormData) {
   }
 
   const supabase = getSupabaseAuthEmailClient();
-  const headerList = await headers();
-  const origin =
-    headerList.get("origin") ??
-    `${headerList.get("x-forwarded-proto") ?? "http"}://${headerList.get("host")}`;
+  const origin = await getAppBaseUrl();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     // Reuses the existing /auth/confirm route — Supabase's recovery link

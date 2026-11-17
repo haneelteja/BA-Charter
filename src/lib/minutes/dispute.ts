@@ -33,24 +33,36 @@ export async function revertMinutesDispute(
     .not("resulting_object_id", "is", null);
   if (candidatesError) throw new Error(`Failed to load committed decisions: ${candidatesError.message}`);
 
-  const decisionIds = (committedDecisions ?? [])
+  const committedIds = (committedDecisions ?? [])
     .map((c) => c.resulting_object_id)
     .filter((id): id is string => id !== null);
 
-  if (decisionIds.length > 0) {
-    await supabase
+  // Only decisions still Provisional are reverted. A decision that is
+  // already Confirmed (the window lapsed, or it was confirmed another way)
+  // stays as it is, and so does the candidate that produced it: resetting
+  // that candidate would orphan the decision and let a re-commit create a
+  // duplicate.
+  let decisionIds: string[] = [];
+  if (committedIds.length > 0) {
+    const { data: reverted, error: revertError } = await supabase
       .from("decision")
       .update({ status: "Candidate" })
-      .in("decision_id", decisionIds)
-      .eq("status", "Provisional");
+      .in("decision_id", committedIds)
+      .eq("status", "Provisional")
+      .select("decision_id");
+    if (revertError) throw new Error(`Failed to revert decisions: ${revertError.message}`);
+    decisionIds = (reverted ?? []).map((d) => d.decision_id);
+  }
 
-    await supabase
+  if (decisionIds.length > 0) {
+    const revertedCandidateIds = (committedDecisions ?? [])
+      .filter((c) => c.resulting_object_id && decisionIds.includes(c.resulting_object_id))
+      .map((c) => c.candidate_id);
+    const { error: resetError } = await supabase
       .from("extraction_candidate")
       .update({ status: "Pending", resulting_object_type: null, resulting_object_id: null, decided_by: null, decided_at: null })
-      .in(
-        "candidate_id",
-        (committedDecisions ?? []).map((c) => c.candidate_id)
-      );
+      .in("candidate_id", revertedCandidateIds);
+    if (resetError) throw new Error(`Failed to reopen candidates: ${resetError.message}`);
   }
 
   const { error: interactionError } = await supabase

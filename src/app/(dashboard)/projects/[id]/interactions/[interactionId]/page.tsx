@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { sanitizeMinutesHtml } from "@/lib/html/sanitizeMinutes";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole, isLead } from "@/lib/projects/role";
 import { SpeakerMapSelect } from "./SpeakerMapSelect";
@@ -377,7 +378,7 @@ export default async function InteractionDetailPage({
           {minutes.status !== "Draft" && minutes.status !== "InReview" && (
             <div
               className="prose prose-sm mt-3 dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: minutes.body_html ?? "" }}
+              dangerouslySetInnerHTML={{ __html: sanitizeMinutesHtml(minutes.body_html) }}
             />
           )}
 

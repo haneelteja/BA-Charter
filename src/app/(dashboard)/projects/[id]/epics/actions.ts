@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -8,13 +9,6 @@ import { getProjectRole, isLead } from "@/lib/projects/role";
 import { getAgileStudioClient } from "@/lib/agileStudio/client";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 /** §3.5 stage 1. */
 export async function createEpic(projectId: string, formData: FormData) {
@@ -28,7 +22,7 @@ export async function createEpic(projectId: string, formData: FormData) {
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: epic, error } = await supabase
     .from("epic")
@@ -71,7 +65,7 @@ export async function updateEpic(projectId: string, epicId: string, formData: Fo
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase
     .from("epic")
@@ -101,7 +95,7 @@ export async function linkEpic(projectId: string, epicId: string, formData: Form
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase.from("trace_link").insert({
     project_id: projectId,
@@ -128,7 +122,7 @@ export async function linkEpic(projectId: string, epicId: string, formData: Form
 export async function unlinkEpic(projectId: string, epicId: string, formData: FormData) {
   const traceLinkId = String(formData.get("trace_link_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { error } = await supabase.from("trace_link").delete().eq("trace_link_id", traceLinkId);
   if (error) throw new Error(`Failed to unlink: ${error.message}`);
@@ -139,7 +133,7 @@ export async function unlinkEpic(projectId: string, epicId: string, formData: Fo
 /** §3.5 stage 2 -> 3 transition: at least one link, same completeness spirit as other Review-gated case types. */
 export async function submitEpicForReview(projectId: string, epicId: string) {
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "author");
 
   const { count } = await supabase
     .from("trace_link")
@@ -171,7 +165,7 @@ export async function reviewEpic(projectId: string, epicId: string, formData: Fo
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const role = await getProjectRole(supabase, projectId, user.id);
   if (!isLead(role)) {
@@ -210,7 +204,7 @@ export async function reviewEpic(projectId: string, epicId: string, formData: Fo
 /** §3.5 stage 4. */
 export async function publishEpic(projectId: string, epicId: string) {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const { data: epic, error: fetchError } = await supabase
     .from("epic")

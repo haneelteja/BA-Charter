@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireProjectAccess } from "@/lib/projects/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveUserLanguageModel } from "@/lib/ai/userModel";
 import { enqueueEmbedding } from "@/lib/ai/embeddingTrigger";
@@ -11,13 +12,6 @@ import {
   type StoryPayload,
 } from "@/lib/ai/guardrails";
 
-async function requireUser(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>) {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    throw new Error("Not signed in.");
-  }
-  return auth.user;
-}
 
 export async function createGlossaryTerm(projectId: string, formData: FormData) {
   const term = String(formData.get("term") ?? "").trim();
@@ -30,7 +24,7 @@ export async function createGlossaryTerm(projectId: string, formData: FormData) 
   }
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "lead");
 
   const { error } = await supabase.from("glossary_term").insert({
     project_id: projectId,
@@ -47,7 +41,7 @@ export async function createGlossaryTerm(projectId: string, formData: FormData) 
 export async function deleteGlossaryTerm(projectId: string, formData: FormData) {
   const termId = String(formData.get("term_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "lead");
 
   const { error } = await supabase.from("glossary_term").delete().eq("term_id", termId);
   if (error) throw new Error(`Failed to delete glossary term: ${error.message}`);
@@ -66,7 +60,7 @@ export async function createGuardrailRule(projectId: string, formData: FormData)
   }
 
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "lead");
 
   const { data: rule, error } = await supabase
     .from("guardrail_rule")
@@ -92,7 +86,7 @@ export async function toggleGuardrailRule(projectId: string, formData: FormData)
   const isActive = formData.get("is_active") === "true";
 
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "lead");
 
   const { error } = await supabase
     .from("guardrail_rule")
@@ -106,7 +100,7 @@ export async function toggleGuardrailRule(projectId: string, formData: FormData)
 export async function deleteGuardrailRule(projectId: string, formData: FormData) {
   const ruleId = String(formData.get("rule_id") ?? "");
   const supabase = await getSupabaseServerClient();
-  await requireUser(supabase);
+  await requireProjectAccess(supabase, projectId, "lead");
 
   const { error } = await supabase.from("guardrail_rule").delete().eq("rule_id", ruleId);
   if (error) throw new Error(`Failed to delete guardrail rule: ${error.message}`);
@@ -126,7 +120,7 @@ export async function runGuardrailCheck(
   payload: StoryPayload
 ): Promise<GuardrailFinding[]> {
   const supabase = await getSupabaseServerClient();
-  const user = await requireUser(supabase);
+  const { user } = await requireProjectAccess(supabase, projectId, "author");
 
   const [{ data: glossary, error: glossaryError }, { data: rules, error: rulesError }] = await Promise.all([
     supabase.from("glossary_term").select("term, preferred_form, banned_forms").eq("project_id", projectId),

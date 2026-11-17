@@ -3,7 +3,8 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getProjectRole } from "@/lib/projects/role";
 import { resolveUserLanguageModel } from "@/lib/ai/userModel";
 import { searchProject, ALL_SCOPES } from "@/lib/ai/search";
-import { buildRagInstructions, extractMessageText, type ChatUIMessage } from "@/lib/ai/projectChat";
+import { buildRagInstructions, dbRowsToUIMessages, extractMessageText, type ChatUIMessage } from "@/lib/ai/projectChat";
+import { parseChatRequest } from "@/lib/ai/chatRequest";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,13 @@ export const runtime = "nodejs";
  */
 const MAX_RETRIEVAL_QUERY_CHARS = 4000;
 
+/** Earlier turns sent to the model, read from the database rather than taken from the client. */
+const HISTORY_TURNS = 40;
+
+/** Per-user cap on chat turns, so a script can't run up the user's model bill or flood the shared thread. */
+const RATE_LIMIT_TURNS = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
 /**
  * Project-wide RAG chat. The client (`useChat` + `DefaultChatTransport`,
  * see ChatPanel.tsx) posts the FULL running conversation on every turn —
@@ -27,7 +35,18 @@ const MAX_RETRIEVAL_QUERY_CHARS = 4000;
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = await params;
-  const { messages } = (await request.json()) as { messages: ChatUIMessage[] };
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response("Invalid JSON.", { status: 400 });
+  }
+  const parsed = parseChatRequest(body);
+  if (!parsed.ok) {
+    return new Response(parsed.error, { status: 400 });
+  }
+  const messages = parsed.data.messages as ChatUIMessage[];
 
   const supabase = await getSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
@@ -45,6 +64,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return new Response("Expected the latest message to be from the user.", { status: 400 });
   }
 
+  const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const { count: recentTurns } = await supabase
+    .from("project_chat_message")
+    .select("chat_message_id", { count: "exact", head: true })
+    .eq("project_id", projectId)
+    .eq("author_id", auth.user.id)
+    .eq("role", "user")
+    .gte("created_at", since);
+  if ((recentTurns ?? 0) >= RATE_LIMIT_TURNS) {
+    return new Response("You're sending messages too quickly. Wait a minute and try again.", { status: 429 });
+  }
+
+  // The model sees the conversation as stored, not whatever history the
+  // client claims (which could contain invented assistant turns).
+  const { data: historyRows, error: historyError } = await supabase
+    .from("project_chat_message")
+    .select("chat_message_id, role, parts")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(HISTORY_TURNS);
+  if (historyError) {
+    return new Response("Failed to load the conversation.", { status: 500 });
+  }
+  const history = dbRowsToUIMessages((historyRows ?? []).reverse());
+
   const { error: insertError } = await supabase.from("project_chat_message").insert({
     project_id: projectId,
     role: "user",
@@ -52,7 +96,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     parts: latestMessage.parts,
   });
   if (insertError) {
-    return new Response(`Failed to save message: ${insertError.message}`, { status: 500 });
+    console.error("[project chat] failed to save message:", insertError.message);
+    return new Response("Failed to save your message.", { status: 500 });
   }
 
   // Everything here either calls out to the user's own BYOK provider or
@@ -78,7 +123,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         : [];
 
     instructions = buildRagInstructions(retrieval);
-    modelMessages = await convertToModelMessages(messages);
+    modelMessages = await convertToModelMessages([...history, latestMessage]);
     model = await resolveUserLanguageModel(auth.user.id);
   } catch (err) {
     console.error("[project chat] failed preparing a response:", err);
